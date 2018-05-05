@@ -1,0 +1,8 @@
+{
+	"author": "Justin Worthe",
+	"email": "justin@worthe-it.co.za",
+	"nickName": "Justin",
+	"botLocation": "/target/release/",
+	"botFileName": "zombot",
+	"botLanguage": "rust"
+}
