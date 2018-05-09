@@ -10,14 +10,14 @@ use std::ops::Fn;
 use std::cmp;
 
 #[derive(Debug, Clone)]
-struct GameState {
-    status: GameStatus,
-    player: Player,
-    opponent: Player,
-    player_buildings: Vec<Building>,
-    opponent_buildings: Vec<Building>,
-    player_missiles: Vec<Missile>,
-    opponent_missiles: Vec<Missile>
+pub struct GameState {
+    pub status: GameStatus,
+    pub player: Player,
+    pub opponent: Player,
+    pub player_buildings: Vec<Building>,
+    pub opponent_buildings: Vec<Building>,
+    pub player_missiles: Vec<Missile>,
+    pub opponent_missiles: Vec<Missile>
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -37,20 +37,20 @@ impl GameStatus {
 
 #[derive(Debug, Clone)]
 pub struct Player {
-    energy: u16,
-    health: u16
+    pub energy: u16,
+    pub health: u16
 }
 
 #[derive(Debug, Clone)]
-struct Building {
-    pos: Point,
-    health: u16,
-    construction_time_left: u8,
-    weapon_damage: u16,
-    weapon_speed: u8,
-    weapon_cooldown_time_left: u8,
-    weapon_cooldown_period: u8,
-    energy_generated_per_turn: u16
+pub struct Building {
+    pub pos: Point,
+    pub health: u16,
+    pub construction_time_left: u8,
+    pub weapon_damage: u16,
+    pub weapon_speed: u8,
+    pub weapon_cooldown_time_left: u8,
+    pub weapon_cooldown_period: u8,
+    pub energy_generated_per_turn: u16
 }
 
 impl Building {
@@ -87,7 +87,6 @@ impl Building {
                 energy_generated_per_turn: 3
             }
         }
-        
     }
 
     fn is_constructed(&self) -> bool {
@@ -95,21 +94,15 @@ impl Building {
     }
 
     fn is_shooty(&self) -> bool {
-        self.is_constructed() && self.weapon_damage >= 0
+        self.is_constructed() && self.weapon_damage > 0
     }
 }
 
 #[derive(Debug, Clone)]
-struct Missile {
-    pos: Point,
-    damage: u16,
-    speed: u8,
-}
-
-impl Missile {
-    fn is_stopped(&self) -> bool {
-        self.speed == 0
-    }
+pub struct Missile {
+    pub pos: Point,
+    pub damage: u16,
+    pub speed: u8,
 }
 
 impl GameState {
@@ -119,8 +112,13 @@ impl GameState {
         }
         
         let mut state = self.clone();
-        GameState::perform_command(&mut state.player_buildings, player_command, &settings.size);
-        GameState::perform_command(&mut state.opponent_buildings, opponent_command, &settings.size);
+        let player_valid = GameState::perform_command(&mut state.player_buildings, player_command, &settings.size);
+        let opponent_valid = GameState::perform_command(&mut state.opponent_buildings, opponent_command, &settings.size);
+
+        if !player_valid || !opponent_valid {
+            state.status = GameStatus::InvalidMove;
+            return state;
+        }
 
         GameState::update_construction(&mut state.player_buildings);
         GameState::update_construction(&mut state.opponent_buildings);

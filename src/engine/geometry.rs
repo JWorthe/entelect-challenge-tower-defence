@@ -5,6 +5,9 @@ pub struct Point {
 }
 
 impl Point {
+    pub fn new(x: u8, y: u8) -> Point {
+        Point { x, y }
+    }
     pub fn move_left(&self) -> Option<Point> {
         self.x.checked_sub(1).map(|x| Point {
             x: x,
