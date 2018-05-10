@@ -29,12 +29,6 @@ pub enum GameStatus {
     InvalidMove
 }
 
-impl GameStatus {
-    fn is_complete(&self) -> bool {
-        *self != GameStatus::Continue
-    }
-}
-
 #[derive(Debug, Clone)]
 pub struct Player {
     pub energy: u16,
@@ -51,51 +45,6 @@ pub struct Building {
     pub weapon_cooldown_time_left: u8,
     pub weapon_cooldown_period: u8,
     pub energy_generated_per_turn: u16
-}
-
-impl Building {
-    fn new(pos: Point, building: BuildingType) -> Building {
-        match building {
-            BuildingType::Defense => Building {
-                pos: pos,
-                health: 20,
-                construction_time_left: 3,
-                weapon_damage: 0,
-                weapon_speed: 0,
-                weapon_cooldown_time_left: 0,
-                weapon_cooldown_period: 0,
-                energy_generated_per_turn: 0
-            },
-            BuildingType::Attack => Building {
-                pos: pos,
-                health: 5,
-                construction_time_left: 1,
-                weapon_damage: 5,
-                weapon_speed: 1,
-                weapon_cooldown_time_left: 0,
-                weapon_cooldown_period: 3,
-                energy_generated_per_turn: 0
-            },
-            BuildingType::Energy => Building {
-                pos: pos,
-                health: 5,
-                construction_time_left: 1,
-                weapon_damage: 0,
-                weapon_speed: 0,
-                weapon_cooldown_time_left: 0,
-                weapon_cooldown_period: 0,
-                energy_generated_per_turn: 3
-            }
-        }
-    }
-
-    fn is_constructed(&self) -> bool {
-        self.construction_time_left == 0
-    }
-
-    fn is_shooty(&self) -> bool {
-        self.is_constructed() && self.weapon_damage > 0
-    }
 }
 
 #[derive(Debug, Clone)]
@@ -215,4 +164,100 @@ impl GameState {
             (false, false) => GameStatus::Continue,
         };
     }
+
+    pub fn unoccupied_player_cells_in_row(&self, settings: &GameSettings, y: u8) -> Vec<Point> {
+        (0..settings.size.x/2)
+            .map(|x| Point::new(x, y))
+            .filter(|&p| !self.player_buildings.iter().any(|b| b.pos == p))
+            .collect()
+    }
+
+    pub fn unoccupied_player_cells(&self, settings: &GameSettings) -> Vec<Point> {
+        (0..settings.size.y)
+            .flat_map(|y| (0..settings.size.x/2).map(|x| Point::new(x, y)).collect::<Vec<_>>())
+            .filter(|&p| !self.player_buildings.iter().any(|b| b.pos == p))
+            .collect()
+    }
+}
+
+impl GameStatus {
+    fn is_complete(&self) -> bool {
+        *self != GameStatus::Continue
+    }
+}
+
+impl Player {
+    pub fn can_afford_all_buildings(&self, settings: &GameSettings) -> bool {
+        self.can_afford_attack_buildings(settings) &&
+            self.can_afford_defence_buildings(settings) &&
+            self.can_afford_energy_buildings(settings)
+    }
+
+    pub fn can_afford_attack_buildings(&self, settings: &GameSettings) -> bool {
+        self.energy >= settings.attack_price
+    }
+    pub fn can_afford_defence_buildings(&self, settings: &GameSettings) -> bool {
+        self.energy >= settings.defence_price
+    }
+    pub fn can_afford_energy_buildings(&self, settings: &GameSettings) -> bool {
+        self.energy >= settings.energy_price
+    }
+
+}
+
+impl Building {
+    fn new(pos: Point, building: BuildingType) -> Building {
+        match building {
+            BuildingType::Defense => Building {
+                pos: pos,
+                health: 20,
+                construction_time_left: 3,
+                weapon_damage: 0,
+                weapon_speed: 0,
+                weapon_cooldown_time_left: 0,
+                weapon_cooldown_period: 0,
+                energy_generated_per_turn: 0
+            },
+            BuildingType::Attack => Building {
+                pos: pos,
+                health: 5,
+                construction_time_left: 1,
+                weapon_damage: 5,
+                weapon_speed: 1,
+                weapon_cooldown_time_left: 0,
+                weapon_cooldown_period: 3,
+                energy_generated_per_turn: 0
+            },
+            BuildingType::Energy => Building {
+                pos: pos,
+                health: 5,
+                construction_time_left: 1,
+                weapon_damage: 0,
+                weapon_speed: 0,
+                weapon_cooldown_time_left: 0,
+                weapon_cooldown_period: 0,
+                energy_generated_per_turn: 3
+            }
+        }
+    }
+
+    fn is_constructed(&self) -> bool {
+        self.construction_time_left == 0
+    }
+
+    fn is_shooty(&self) -> bool {
+        self.is_constructed() && self.weapon_damage > 0
+    }
+}
+
+#[test]
+fn how_big() {
+    use std::mem;
+    assert_eq!(4, mem::size_of::<Player>());
+    assert_eq!(12, mem::size_of::<Building>());
+    assert_eq!(6, mem::size_of::<Missile>());
+    assert_eq!(112, mem::size_of::<GameState>());
+    assert_eq!(24, mem::size_of::<Vec<Building>>());
+    assert_eq!(24, mem::size_of::<Vec<Missile>>());
+    
 }
