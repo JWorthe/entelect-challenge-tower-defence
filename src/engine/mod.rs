@@ -168,11 +168,11 @@ impl GameState {
 
     fn update_status(state: &mut GameState) {
         let player_dead = state.player.health == 0;
-        let opponent_dead = state.player.health == 0;
+        let opponent_dead = state.opponent.health == 0;
         state.status = match (player_dead, opponent_dead) {
             (true, true) => GameStatus::Draw,
-            (true, false) => GameStatus::PlayerWon,
-            (false, true) => GameStatus::OpponentWon,
+            (false, true) => GameStatus::PlayerWon,
+            (true, false) => GameStatus::OpponentWon,
             (false, false) => GameStatus::Continue,
         };
     }
@@ -262,14 +262,4 @@ impl Building {
     }
 }
 
-#[test]
-fn how_big() {
-    use std::mem;
-    assert_eq!(4, mem::size_of::<Player>());
-    assert_eq!(12, mem::size_of::<Building>());
-    assert_eq!(6, mem::size_of::<Missile>());
-    assert_eq!(112, mem::size_of::<GameState>());
-    assert_eq!(24, mem::size_of::<Vec<Building>>());
-    assert_eq!(24, mem::size_of::<Vec<Missile>>());
-    
-}
+

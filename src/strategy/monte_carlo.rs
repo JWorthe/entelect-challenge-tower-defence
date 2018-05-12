@@ -3,7 +3,7 @@ use engine::command::*;
 use engine::{GameState, GameStatus};
 
 use rand::{thread_rng, Rng};
-
+use std::process;
 const MAX_MOVES: u16 = 400;
 
 // TODO Round start time here
@@ -16,14 +16,11 @@ pub fn choose_move(settings: &GameSettings, state: &GameState) -> Command {
     // TODO Repeat this until time is out
     for _ in 0..1000 {
         for mut score in &mut command_scores {
-            if simulate_to_endstate(settings, state, score.command, &mut rng) {
-                score.add_victory();
-            } else {
-                score.add_defeat();
-            }
+            simulate_to_endstate(score, settings, state, &mut rng);
         }
     }
 
+    println!("{:?}", command_scores);
     let command = command_scores.iter().max_by_key(|&c| c.win_ratio());
     
     match command {
@@ -32,22 +29,30 @@ pub fn choose_move(settings: &GameSettings, state: &GameState) -> Command {
     }
 }
 
-fn simulate_to_endstate<R: Rng>(settings: &GameSettings, state: &GameState, command: Command, rng: &mut R) -> bool {
+fn simulate_to_endstate<R: Rng>(command_score: &mut CommandScore, settings: &GameSettings, state: &GameState, rng: &mut R) {
     let opponent_first = random_opponent_move(settings, state, rng);
-    let mut state_mut = state.simulate(settings, command, opponent_first);
+    let mut state_mut = state.simulate(settings, command_score.command, opponent_first);
     
     for _ in 0..MAX_MOVES {
         if state_mut.status != GameStatus::Continue {
             break;
         }
 
-        let player_command = random_player_move(settings, state, rng);
-        let opponent_command = random_opponent_move(settings, state, rng);
+        let player_command = random_player_move(settings, &state_mut, rng);
+        let opponent_command = random_opponent_move(settings, &state_mut, rng);
         state_mut.simulate_mut(settings, player_command, opponent_command);
-        
     }
-    
-    state_mut.status == GameStatus::PlayerWon
+
+    match state_mut.status {
+        GameStatus::PlayerWon => command_score.add_victory(),
+        GameStatus::OpponentWon => command_score.add_defeat(),
+        GameStatus::Continue => command_score.add_stalemate(),
+        GameStatus::Draw => command_score.add_draw(),
+        GameStatus::InvalidMove => {
+            println!("Invalid move made while performing simulation");
+            process::exit(0);
+        }
+    }
 }
 
 fn random_player_move<R: Rng>(settings: &GameSettings, state: &GameState, rng: &mut R) -> Command {
@@ -59,10 +64,13 @@ fn random_opponent_move<R: Rng>(settings: &GameSettings, state: &GameState, rng:
     rng.choose(&all_commands).cloned().unwrap_or(Command::Nothing)
 }
 
-
+#[derive(Debug)]
 struct CommandScore {
     command: Command,
     victories: u32,
+    defeats: u32,
+    draws: u32,
+    stalemates: u32,
     attempts: u32
 }
 
@@ -71,6 +79,9 @@ impl CommandScore {
         CommandScore {
             command: command,
             victories: 0,
+            defeats: 0,
+            draws: 0,
+            stalemates: 0,
             attempts: 0
         }
     }
@@ -81,6 +92,17 @@ impl CommandScore {
     }
 
     fn add_defeat(&mut self) {
+        self.defeats += 1;
+        self.attempts += 1;
+    }
+
+    fn add_draw(&mut self) {
+        self.draws += 1;
+        self.attempts += 1;
+    }
+
+    fn add_stalemate(&mut self) {
+        self.stalemates += 1;
         self.attempts += 1;
     }
 
