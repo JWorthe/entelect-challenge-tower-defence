@@ -1,4 +1,7 @@
 extern crate zombot;
+extern crate time;
+use time::PreciseTime;
+
 use zombot::*;
 use zombot::engine::command::Command;
 
@@ -12,8 +15,8 @@ use std::fs::File;
 use std::io::prelude::*;
 use std::process;
 
-fn choose_move(settings: &engine::settings::GameSettings, state: &engine::GameState) -> Command {
-    strategy::monte_carlo::choose_move(settings, state)
+fn choose_move(settings: &engine::settings::GameSettings, state: &engine::GameState, start_time: &PreciseTime) -> Command {
+    strategy::monte_carlo::choose_move(settings, state, start_time)
 }
 
 
@@ -25,6 +28,8 @@ fn write_command(filename: &str, command: Command) -> Result<(), Box<Error> > {
 
 
 fn main() {
+    let start_time = PreciseTime::now();
+    
     println!("Reading in state.json file");
     let (settings, state) = match json::read_state_from_file(STATE_PATH) {
         Ok(ok) => ok,
@@ -33,7 +38,7 @@ fn main() {
             process::exit(1);
         }
     };
-    let command = choose_move(&settings, &state);
+    let command = choose_move(&settings, &state, &start_time);
 
     match write_command(COMMAND_PATH, command) {
         Ok(()) => {}
@@ -42,4 +47,6 @@ fn main() {
             process::exit(1);
         }
     }
+
+    println!("Elapsed time: {}", start_time.to(PreciseTime::now()));
 }

@@ -6,21 +6,28 @@ use rand::{thread_rng, Rng};
 use std::process;
 const MAX_MOVES: u16 = 400;
 
+use time::{Duration, PreciseTime};
+
 // TODO Round start time here
-pub fn choose_move(settings: &GameSettings, state: &GameState) -> Command {
+pub fn choose_move(settings: &GameSettings, state: &GameState, start_time: &PreciseTime) -> Command {
     println!("Using MONTE_CARLO strategy");
+
+    //just under the max of 2 seconds, to avoid issues like overhead in the bot being run, and we still need to write the result of this to file
+    let max_time = Duration::milliseconds(1950);
     
     let mut rng = thread_rng();
     let mut command_scores = CommandScore::init_command_scores(settings, state);
 
-    // TODO Repeat this until time is out
-    for _ in 0..1000 {
+    loop {
         for mut score in &mut command_scores {
             simulate_to_endstate(score, settings, state, &mut rng);
         }
+        if start_time.to(PreciseTime::now()) > max_time {
+            break;
+        }
     }
 
-    println!("{:?}", command_scores);
+    println!("{:#?}", command_scores);
     let command = command_scores.iter().max_by_key(|&c| c.win_ratio());
     
     match command {

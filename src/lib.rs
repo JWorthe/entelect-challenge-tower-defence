@@ -5,6 +5,7 @@ extern crate serde_json;
 extern crate serde_derive;
 
 extern crate rand;
+extern crate time;
 
 pub mod json;
 pub mod engine;
