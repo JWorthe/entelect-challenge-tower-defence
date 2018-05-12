@@ -13,7 +13,7 @@ use std::io::prelude::*;
 use std::process;
 
 fn choose_move(settings: &engine::settings::GameSettings, state: &engine::GameState) -> Command {
-    strategy::sample::choose_move(settings, state)
+    strategy::monte_carlo::choose_move(settings, state)
 }
 
 
@@ -25,10 +25,11 @@ fn write_command(filename: &str, command: Command) -> Result<(), Box<Error> > {
 
 
 fn main() {
+    println!("Reading in state.json file");
     let (settings, state) = match json::read_state_from_file(STATE_PATH) {
         Ok(ok) => ok,
         Err(error) => {
-            eprintln!("Error while parsing JSON file: {}", error);
+            println!("Error while parsing JSON file: {}", error);
             process::exit(1);
         }
     };
@@ -37,7 +38,7 @@ fn main() {
     match write_command(COMMAND_PATH, command) {
         Ok(()) => {}
         Err(error) => {
-            eprintln!("Error while writing command file: {}", error);
+            println!("Error while writing command file: {}", error);
             process::exit(1);
         }
     }

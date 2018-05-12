@@ -30,7 +30,7 @@ struct GameDetails {
     map_width: u8,
     map_height: u8,
     round_income_energy: u16,
-    building_stats: BuildingStats
+    buildings_stats: BuildingStats
 }
 
 #[derive(Deserialize)]
@@ -110,9 +110,9 @@ impl State {
         engine::settings::GameSettings {
             size: engine::geometry::Point::new(self.game_details.map_width, self.game_details.map_height),
             energy_income: self.game_details.round_income_energy,
-            energy: self.game_details.building_stats.energy.to_engine(),
-            defence: self.game_details.building_stats.defense.to_engine(),
-            attack: self.game_details.building_stats.attack.to_engine(),
+            energy: self.game_details.buildings_stats.energy.to_engine(),
+            defence: self.game_details.buildings_stats.defense.to_engine(),
+            attack: self.game_details.buildings_stats.attack.to_engine(),
         }
     }
     

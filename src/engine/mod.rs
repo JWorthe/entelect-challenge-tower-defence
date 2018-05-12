@@ -2,7 +2,7 @@ pub mod command;
 pub mod geometry;
 pub mod settings;
 
-use self::command::Command;
+use self::command::{Command, BuildingType};
 use self::geometry::Point;
 use self::settings::{GameSettings, BuildingSettings};
 
@@ -56,35 +56,39 @@ pub struct Missile {
 
 impl GameState {
     pub fn simulate(&self, settings: &GameSettings, player_command: Command, opponent_command: Command) -> GameState {
-        if self.status.is_complete() {
-            return self.clone();
-        }
-        
         let mut state = self.clone();
-        let player_valid = GameState::perform_command(&mut state.player_buildings, &mut state.player, settings, player_command, &settings.size);
-        let opponent_valid = GameState::perform_command(&mut state.opponent_buildings, &mut state.opponent, settings, opponent_command, &settings.size);
+        state.simulate_mut(settings, player_command, opponent_command);
+        state
+    }
+
+    pub fn simulate_mut(&mut self, settings: &GameSettings, player_command: Command, opponent_command: Command) {
+        if self.status.is_complete() {
+            return;
+        }
+
+        let player_valid = GameState::perform_command(&mut self.player_buildings, &mut self.player, settings, player_command, &settings.size);
+        let opponent_valid = GameState::perform_command(&mut self.opponent_buildings, &mut self.opponent, settings, opponent_command, &settings.size);
 
         if !player_valid || !opponent_valid {
-            state.status = GameStatus::InvalidMove;
-            return state;
+            self.status = GameStatus::InvalidMove;
+            return;
         }
 
-        GameState::update_construction(&mut state.player_buildings);
-        GameState::update_construction(&mut state.opponent_buildings);
+        GameState::update_construction(&mut self.player_buildings);
+        GameState::update_construction(&mut self.opponent_buildings);
 
-        GameState::add_missiles(&mut state.player_buildings, &mut state.player_missiles);
-        GameState::add_missiles(&mut state.opponent_buildings, &mut state.opponent_missiles);
+        GameState::add_missiles(&mut self.player_buildings, &mut self.player_missiles);
+        GameState::add_missiles(&mut self.opponent_buildings, &mut self.opponent_missiles);
 
-        GameState::move_missiles(&mut state.player_missiles, |p| p.move_right(&settings.size),
-                                 &mut state.opponent_buildings, &mut state.opponent);
-        GameState::move_missiles(&mut state.opponent_missiles, |p| p.move_left(),
-                                 &mut state.player_buildings, &mut state.player);
+        GameState::move_missiles(&mut self.player_missiles, |p| p.move_right(&settings.size),
+                                 &mut self.opponent_buildings, &mut self.opponent);
+        GameState::move_missiles(&mut self.opponent_missiles, |p| p.move_left(),
+                                 &mut self.player_buildings, &mut self.player);
 
-        GameState::add_energy(&mut state.player, settings, &state.player_buildings);
-        GameState::add_energy(&mut state.opponent, settings, &state.opponent_buildings);
+        GameState::add_energy(&mut self.player, settings, &self.player_buildings);
+        GameState::add_energy(&mut self.opponent, settings, &self.opponent_buildings);
 
-        GameState::update_status(&mut state);
-        state
+        GameState::update_status(self);
     }
 
     fn perform_command(buildings: &mut Vec<Building>, player: &mut Player, settings: &GameSettings, command: Command, size: &Point) -> bool {
@@ -184,6 +188,28 @@ impl GameState {
         (0..settings.size.y)
             .flat_map(|y| (0..settings.size.x/2).map(|x| Point::new(x, y)).collect::<Vec<_>>())
             .filter(|&p| !self.player_buildings.iter().any(|b| b.pos == p))
+            .collect()
+    }
+
+    pub fn unoccupied_opponent_cells(&self, settings: &GameSettings) -> Vec<Point> {
+        (0..settings.size.y)
+            .flat_map(|y| (settings.size.x/2..settings.size.x).map(|x| Point::new(x, y)).collect::<Vec<_>>())
+            .filter(|&p| !self.opponent_buildings.iter().any(|b| b.pos == p))
+            .collect()
+    }
+
+    pub fn player_affordable_buildings(&self, settings: &GameSettings) -> Vec<BuildingType> {
+        GameState::affordable_buildings(self.player.energy, settings)
+    }
+
+    pub fn opponent_affordable_buildings(&self, settings: &GameSettings) -> Vec<BuildingType> {
+        GameState::affordable_buildings(self.opponent.energy, settings)
+    }
+
+    fn affordable_buildings(energy: u16, settings: &GameSettings) -> Vec<BuildingType> {
+        BuildingType::all().iter()
+            .filter(|&b| settings.building_settings(*b).price <= energy)
+            .cloned()
             .collect()
     }
 }

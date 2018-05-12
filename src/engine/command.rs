@@ -23,3 +23,10 @@ pub enum BuildingType {
     Attack = 1,
     Energy = 2,
 }
+
+impl BuildingType {
+    pub fn all() -> [BuildingType; 3] {
+        use self::BuildingType::*;
+        [Defence, Attack, Energy]
+    }
+}
