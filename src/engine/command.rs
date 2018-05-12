@@ -19,7 +19,7 @@ impl fmt::Display for Command {
 #[repr(u8)]
 #[derive(Debug, Clone, Copy)]
 pub enum BuildingType {
-    Defense = 0,
+    Defence = 0,
     Attack = 1,
     Energy = 2,
 }

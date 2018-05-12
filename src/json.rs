@@ -29,15 +29,30 @@ struct GameDetails {
     //round: u32,
     map_width: u8,
     map_height: u8,
-    building_prices: BuildingPrices
+    round_income_energy: u16,
+    building_stats: BuildingStats
 }
 
 #[derive(Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-struct BuildingPrices {
-    energy: u16,
-    defense: u16,
-    attack: u16
+struct BuildingStats {
+    energy: BuildingBlueprint,
+    defense: BuildingBlueprint,
+    attack: BuildingBlueprint
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct BuildingBlueprint {
+    price: u16,
+    health: u16,
+    construction_time: u8,
+    weapon_damage: u16,
+    weapon_speed: u8,
+    weapon_cooldown_period: u8,
+    energy_generated_per_turn: u16,
+//    destroy_multiplier: u16,
+//    construction_score: u16
 }
 
 #[derive(Deserialize)]
@@ -94,10 +109,10 @@ impl State {
     fn to_engine_settings(&self) -> engine::settings::GameSettings {
         engine::settings::GameSettings {
             size: engine::geometry::Point::new(self.game_details.map_width, self.game_details.map_height),
-            energy_income: 5,
-            energy_price: self.game_details.building_prices.energy,
-            defence_price: self.game_details.building_prices.defense,
-            attack_price: self.game_details.building_prices.attack,
+            energy_income: self.game_details.round_income_energy,
+            energy: self.game_details.building_stats.energy.to_engine(),
+            defence: self.game_details.building_stats.defense.to_engine(),
+            attack: self.game_details.building_stats.attack.to_engine(),
         }
     }
     
@@ -147,6 +162,20 @@ impl State {
                       )
             )
             .collect()
+    }
+}
+
+impl BuildingBlueprint {
+    fn to_engine(&self) -> engine::settings::BuildingSettings {
+        engine::settings::BuildingSettings {
+            price: self.price,
+            health: self.health,
+            construction_time: self.construction_time,
+            weapon_damage: self.weapon_damage,
+            weapon_speed: self.weapon_speed,
+            weapon_cooldown_period: self.weapon_cooldown_period,
+            energy_generated_per_turn: self.energy_generated_per_turn,
+        }
     }
 }
 

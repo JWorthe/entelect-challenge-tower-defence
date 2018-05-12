@@ -28,6 +28,7 @@ fn main() {
     let (settings, state) = match json::read_state_from_file(STATE_PATH) {
         Ok(ok) => ok,
         Err(error) => {
+            eprintln!("Error while parsing JSON file: {}", error);
             process::exit(1);
         }
     };
@@ -36,6 +37,7 @@ fn main() {
     match write_command(COMMAND_PATH, command) {
         Ok(()) => {}
         Err(error) => {
+            eprintln!("Error while writing command file: {}", error);
             process::exit(1);
         }
     }

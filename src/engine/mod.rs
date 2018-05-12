@@ -2,9 +2,9 @@ pub mod command;
 pub mod geometry;
 pub mod settings;
 
-use self::command::{BuildingType, Command};
+use self::command::Command;
 use self::geometry::Point;
-use self::settings::GameSettings;
+use self::settings::{GameSettings, BuildingSettings};
 
 use std::ops::Fn;
 use std::cmp;
@@ -61,8 +61,8 @@ impl GameState {
         }
         
         let mut state = self.clone();
-        let player_valid = GameState::perform_command(&mut state.player_buildings, player_command, &settings.size);
-        let opponent_valid = GameState::perform_command(&mut state.opponent_buildings, opponent_command, &settings.size);
+        let player_valid = GameState::perform_command(&mut state.player_buildings, settings, player_command, &settings.size);
+        let opponent_valid = GameState::perform_command(&mut state.opponent_buildings, settings, opponent_command, &settings.size);
 
         if !player_valid || !opponent_valid {
             state.status = GameStatus::InvalidMove;
@@ -87,13 +87,13 @@ impl GameState {
         state
     }
 
-    fn perform_command(buildings: &mut Vec<Building>, command: Command, size: &Point) -> bool {
+    fn perform_command(buildings: &mut Vec<Building>, settings: &GameSettings, command: Command, size: &Point) -> bool {
         match command {
             Command::Nothing => { true },
             Command::Build(p, b) => {
                 let occupied = buildings.iter().any(|b| b.pos == p);
                 let in_range = p.x < size.x && p.y < size.y;
-                buildings.push(Building::new(p, b));
+                buildings.push(Building::new(p, settings.building_settings(b)));
                 !occupied && in_range
             },
         }
@@ -194,50 +194,28 @@ impl Player {
     }
 
     pub fn can_afford_attack_buildings(&self, settings: &GameSettings) -> bool {
-        self.energy >= settings.attack_price
+        self.energy >= settings.attack.price
     }
     pub fn can_afford_defence_buildings(&self, settings: &GameSettings) -> bool {
-        self.energy >= settings.defence_price
+        self.energy >= settings.defence.price
     }
     pub fn can_afford_energy_buildings(&self, settings: &GameSettings) -> bool {
-        self.energy >= settings.energy_price
+        self.energy >= settings.energy.price
     }
 
 }
 
 impl Building {
-    fn new(pos: Point, building: BuildingType) -> Building {
-        match building {
-            BuildingType::Defense => Building {
-                pos: pos,
-                health: 20,
-                construction_time_left: 3,
-                weapon_damage: 0,
-                weapon_speed: 0,
-                weapon_cooldown_time_left: 0,
-                weapon_cooldown_period: 0,
-                energy_generated_per_turn: 0
-            },
-            BuildingType::Attack => Building {
-                pos: pos,
-                health: 5,
-                construction_time_left: 1,
-                weapon_damage: 5,
-                weapon_speed: 1,
-                weapon_cooldown_time_left: 0,
-                weapon_cooldown_period: 3,
-                energy_generated_per_turn: 0
-            },
-            BuildingType::Energy => Building {
-                pos: pos,
-                health: 5,
-                construction_time_left: 1,
-                weapon_damage: 0,
-                weapon_speed: 0,
-                weapon_cooldown_time_left: 0,
-                weapon_cooldown_period: 0,
-                energy_generated_per_turn: 3
-            }
+    fn new(pos: Point, blueprint: &BuildingSettings) -> Building {
+        Building {
+            pos: pos,
+            health: blueprint.health,
+            construction_time_left: blueprint.construction_time,
+            weapon_damage: blueprint.weapon_damage,
+            weapon_speed: blueprint.weapon_speed,
+            weapon_cooldown_time_left: 0,
+            weapon_cooldown_period: blueprint.weapon_cooldown_period,
+            energy_generated_per_turn: blueprint.energy_generated_per_turn
         }
     }
 
