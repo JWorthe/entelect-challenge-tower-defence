@@ -61,8 +61,8 @@ impl GameState {
         }
         
         let mut state = self.clone();
-        let player_valid = GameState::perform_command(&mut state.player_buildings, settings, player_command, &settings.size);
-        let opponent_valid = GameState::perform_command(&mut state.opponent_buildings, settings, opponent_command, &settings.size);
+        let player_valid = GameState::perform_command(&mut state.player_buildings, &mut state.player, settings, player_command, &settings.size);
+        let opponent_valid = GameState::perform_command(&mut state.opponent_buildings, &mut state.opponent, settings, opponent_command, &settings.size);
 
         if !player_valid || !opponent_valid {
             state.status = GameStatus::InvalidMove;
@@ -87,14 +87,22 @@ impl GameState {
         state
     }
 
-    fn perform_command(buildings: &mut Vec<Building>, settings: &GameSettings, command: Command, size: &Point) -> bool {
+    fn perform_command(buildings: &mut Vec<Building>, player: &mut Player, settings: &GameSettings, command: Command, size: &Point) -> bool {
         match command {
             Command::Nothing => { true },
             Command::Build(p, b) => {
+                let blueprint = settings.building_settings(b);
+                
                 let occupied = buildings.iter().any(|b| b.pos == p);
                 let in_range = p.x < size.x && p.y < size.y;
-                buildings.push(Building::new(p, settings.building_settings(b)));
-                !occupied && in_range
+                let has_energy = player.energy >= blueprint.price;
+
+                let valid = !occupied && in_range && has_energy;
+                if valid {
+                    player.energy -= blueprint.price;
+                    buildings.push(Building::new(p, blueprint));
+                }
+                valid                
             },
         }
     }
