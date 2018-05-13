@@ -6,7 +6,7 @@ use criterion::Criterion;
 extern crate lazy_static;
 
 extern crate zombot;
-use zombot::engine::{GameState, Player, GameStatus, Building};
+use zombot::engine::{GameState, Player, GameStatus, Building, Missile};
 use zombot::engine::settings::{GameSettings, BuildingSettings};
 use zombot::engine::geometry::Point;
 use zombot::engine::command::{Command, BuildingType};
@@ -16,7 +16,7 @@ use rand::{thread_rng, Rng};
 
 fn create_example_state(settings: &GameSettings,
     player_buildings: usize, opponent_buildings: usize,
-    _player_missiles: usize, _opponent_missiles: usize
+    player_missiles: usize, opponent_missiles: usize
 ) -> GameState {
     GameState {
         status: GameStatus::Continue,
@@ -30,8 +30,8 @@ fn create_example_state(settings: &GameSettings,
         },
         player_buildings: (0..player_buildings).map(|_| create_player_building(settings)).collect(),
         opponent_buildings: (0..opponent_buildings).map(|_| create_player_building(settings)).collect(),
-        player_missiles: Vec::new(),
-        opponent_missiles: Vec::new()
+        player_missiles: (0..player_missiles).map(|_| create_missile(settings)).collect(),
+        opponent_missiles: (0..opponent_missiles).map(|_| create_missile(settings)).collect()
     }
 }
 
@@ -97,11 +97,24 @@ fn create_opponent_building(settings: &GameSettings) -> Building {
     Building::new(*position, blueprint)
 }
 
+fn create_missile(settings: &GameSettings) -> Missile {
+    let all_positions = (0..settings.size.y)
+        .flat_map(|y| (settings.size.x/2..settings.size.x).map(|x| Point::new(x, y)).collect::<Vec<_>>())
+        .collect::<Vec<_>>();
+    let mut rng = thread_rng();
+    let position = rng.choose(&all_positions).unwrap();
+
+    Missile {
+        pos: *position,
+        damage: 5,
+        speed: 1
+    }
+}
 
 
 fn full_simulation_benchmark(c: &mut Criterion) {
     let settings = create_example_settings();
-    let state = create_example_state(&settings, 5, 5, 0, 0);
+    let state = create_example_state(&settings, 5, 5, 5, 5);
     
     let player_command = Command::Build(Point::new(0,0),BuildingType::Defence);
     let opponent_command = Command::Build(Point::new(4,4),BuildingType::Energy);
@@ -126,5 +139,26 @@ fn full_simulation_benchmark_against_number_of_buildings(c: &mut Criterion) {
     c.bench_function_over_inputs("player buildings variable", move |b, &state_index| b.iter(|| STATES[state_index].simulate(&settings, player_command, opponent_command)), (0..STATES.len()));
 }
 
-criterion_group!(benches, full_simulation_benchmark, full_simulation_benchmark_against_number_of_buildings);
+fn full_simulation_benchmark_against_number_of_missiles(c: &mut Criterion) {
+    let settings = create_example_settings();
+
+    lazy_static! {
+        static ref STATES: Vec<GameState> = {
+            let settings = create_example_settings();
+            (0..10)
+                .map(|i| create_example_state(&settings, 2, 5, i*2, i*2))
+                .collect::<Vec<_>>()
+        };
+    }
+
+    let player_command = Command::Build(Point::new(0,0),BuildingType::Defence);
+    let opponent_command = Command::Build(Point::new(4,4),BuildingType::Energy);
+    
+    c.bench_function_over_inputs("player missiles variable", move |b, &state_index| b.iter(|| STATES[state_index].simulate(&settings, player_command, opponent_command)), (0..STATES.len()));
+}
+
+criterion_group!(benches,
+                 full_simulation_benchmark,
+                 full_simulation_benchmark_against_number_of_buildings,
+                 full_simulation_benchmark_against_number_of_missiles);
 criterion_main!(benches);
