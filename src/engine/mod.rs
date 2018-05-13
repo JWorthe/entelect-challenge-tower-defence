@@ -240,7 +240,7 @@ impl Player {
 }
 
 impl Building {
-    fn new(pos: Point, blueprint: &BuildingSettings) -> Building {
+    pub fn new(pos: Point, blueprint: &BuildingSettings) -> Building {
         Building {
             pos: pos,
             health: blueprint.health,
