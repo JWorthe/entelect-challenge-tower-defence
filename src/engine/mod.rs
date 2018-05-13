@@ -151,10 +151,13 @@ impl GameState {
                         }
                     }
                 }
-                
+
+                /*
+                check is necessary if speed could be > 1, which isn't the case yet
                 if missile.speed == 0 {
                     break;
                 }
+                 */
             }
         }
         missiles.retain(|m| m.speed > 0);
