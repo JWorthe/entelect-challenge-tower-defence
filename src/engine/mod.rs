@@ -58,10 +58,10 @@ pub struct Missile {
 impl GameState {
     pub fn new(player: Player, opponent: Player, player_buildings: Vec<Building>, opponent_buildings: Vec<Building>, player_missiles: Vec<Missile>, opponent_missiles: Vec<Missile>, settings: &GameSettings) -> GameState {
         let unoccupied_player_cells = GameState::unoccupied_cells(
-            &player_buildings, Point::new(0, settings.size.x/2), Point::new(0, settings.size.y)
+            &player_buildings, Point::new(0, 0), Point::new(settings.size.x/2, settings.size.y)
         );
         let unoccupied_opponent_cells = GameState::unoccupied_cells(
-            &opponent_buildings, Point::new(settings.size.x/2, settings.size.x), Point::new(0, settings.size.y)
+            &opponent_buildings, Point::new(settings.size.x/2, 0), Point::new(settings.size.x, settings.size.y)
         );
         GameState {
             status: GameStatus::Continue,
