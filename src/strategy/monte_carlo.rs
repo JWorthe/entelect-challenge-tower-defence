@@ -4,7 +4,6 @@ use engine::geometry::*;
 use engine::{GameState, GameStatus};
 
 use rand::{thread_rng, Rng};
-use std::process;
 const MAX_MOVES: u16 = 400;
 
 use time::{Duration, PreciseTime};
@@ -56,11 +55,7 @@ fn simulate_to_endstate<R: Rng>(command_score: &mut CommandScore, settings: &Gam
         GameStatus::PlayerWon => command_score.add_victory(),
         GameStatus::OpponentWon => command_score.add_defeat(),
         GameStatus::Continue => command_score.add_stalemate(),
-        GameStatus::Draw => command_score.add_draw(),
-        GameStatus::InvalidMove => {
-            println!("Invalid move made while performing simulation");
-            process::exit(0);
-        }
+        GameStatus::Draw => command_score.add_draw()
     }
 }
 

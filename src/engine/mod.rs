@@ -25,8 +25,7 @@ pub enum GameStatus {
     Continue,
     PlayerWon,
     OpponentWon,
-    Draw,
-    InvalidMove
+    Draw
 }
 
 #[derive(Debug, Clone)]
@@ -66,13 +65,8 @@ impl GameState {
             return;
         }
 
-        let player_valid = GameState::perform_command(&mut self.player_buildings, &mut self.player, settings, player_command, &settings.size);
-        let opponent_valid = GameState::perform_command(&mut self.opponent_buildings, &mut self.opponent, settings, opponent_command, &settings.size);
-
-        if !player_valid || !opponent_valid {
-            self.status = GameStatus::InvalidMove;
-            return;
-        }
+        GameState::perform_command(&mut self.player_buildings, &mut self.player, settings, player_command, &settings.size);
+        GameState::perform_command(&mut self.opponent_buildings, &mut self.opponent, settings, opponent_command, &settings.size);
 
         GameState::update_construction(&mut self.player_buildings);
         GameState::update_construction(&mut self.opponent_buildings);
@@ -91,22 +85,20 @@ impl GameState {
         GameState::update_status(self);
     }
 
-    fn perform_command(buildings: &mut Vec<Building>, player: &mut Player, settings: &GameSettings, command: Command, size: &Point) -> bool {
+    fn perform_command(buildings: &mut Vec<Building>, player: &mut Player, settings: &GameSettings, command: Command, size: &Point) {
         match command {
-            Command::Nothing => { true },
+            Command::Nothing => { },
             Command::Build(p, b) => {
                 let blueprint = settings.building_settings(b);
-                
-                let occupied = buildings.iter().any(|b| b.pos == p);
-                let in_range = p.x < size.x && p.y < size.y;
-                let has_energy = player.energy >= blueprint.price;
 
-                let valid = !occupied && in_range && has_energy;
-                if valid {
-                    player.energy -= blueprint.price;
-                    buildings.push(Building::new(p, blueprint));
-                }
-                valid                
+                // This is used internally. I should not be making
+                // invalid moves!
+                debug_assert!(!buildings.iter().any(|b| b.pos == p));
+                debug_assert!(p.x < size.x && p.y < size.y);
+                debug_assert!(player.energy >= blueprint.price);
+
+                player.energy -= blueprint.price;
+                buildings.push(Building::new(p, blueprint));
             },
         }
     }
@@ -144,7 +136,7 @@ impl GameState {
                     },
                     Some(point) => {
                         missile.pos = point;
-                        for hit in opponent_buildings.iter_mut().filter(|b| b.is_constructed() && b.pos == point && b.health > 0) {
+                        for hit in opponent_buildings.iter_mut().filter(|b| b.is_constructed() && b.pos == point/* && b.health > 0*/) { //TODO surely this health>0 belongs? Not what the real game engine is doing unfortunately
                             let damage = cmp::min(missile.damage, hit.health);
                             hit.health -= damage;
                             missile.speed = 0;                    
