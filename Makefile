@@ -6,7 +6,7 @@ test:
 
 profile:
 	cargo build --release --features "benchmarking"
-	sudo perf record -F 99 -a -g target/release/perf-test
+	sudo perf record -F 1000 -a -g target/release/perf-test
 	sudo perf script > out.perf
 	../FlameGraph/stackcollapse-perf.pl out.perf > out.folded
 	../FlameGraph/flamegraph.pl out.folded > flamegraph.svg
