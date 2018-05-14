@@ -7,7 +7,7 @@ use zombot::engine::command::Command;
 
 use std::error::Error;
 
-const STATE_PATH: &str = "state.json";
+const STATE_PATH: &str = "init_state.json";
 
 const COMMAND_PATH: &str = "command.txt";
 
@@ -16,7 +16,7 @@ use std::io::prelude::*;
 use std::process;
 
 fn choose_move(settings: &engine::settings::GameSettings, state: &engine::GameState, start_time: &PreciseTime) -> Command {
-    let max_time = Duration::milliseconds(1950);
+    let max_time = Duration::milliseconds(9950);
     strategy::monte_carlo::choose_move(settings, state, start_time, max_time)
 }
 

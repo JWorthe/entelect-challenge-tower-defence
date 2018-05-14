@@ -1,11 +1,9 @@
 use engine;
 use engine::command::*;
 
-use time::PreciseTime;
-
 use rand::{thread_rng, Rng};
 
-pub fn choose_move(settings: &engine::settings::GameSettings, state: &engine::GameState, _start_time: &PreciseTime) -> Command {
+pub fn choose_move(settings: &engine::settings::GameSettings, state: &engine::GameState) -> Command {
     let mut rng = thread_rng();
     
     if state.player.can_afford_defence_buildings(settings) {

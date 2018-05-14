@@ -8,12 +8,8 @@ const MAX_MOVES: u16 = 400;
 
 use time::{Duration, PreciseTime};
 
-// TODO Round start time here
-pub fn choose_move(settings: &GameSettings, state: &GameState, start_time: &PreciseTime) -> Command {
+pub fn choose_move(settings: &GameSettings, state: &GameState, start_time: &PreciseTime, max_time: Duration) -> Command {
     println!("Using MONTE_CARLO strategy");
-
-    //just under the max of 2 seconds, to avoid issues like overhead in the bot being run, and we still need to write the result of this to file
-    let max_time = Duration::milliseconds(1950);
     
     let mut rng = thread_rng();
     let mut command_scores = CommandScore::init_command_scores(settings, state);
@@ -27,8 +23,13 @@ pub fn choose_move(settings: &GameSettings, state: &GameState, start_time: &Prec
         }
     }
 
-    println!("{:#?}", command_scores);
     let command = command_scores.iter().max_by_key(|&c| c.win_ratio());
+
+    #[cfg(feature = "benchmarking")]
+    {
+        let total_iterations: u32 = command_scores.iter().map(|c| c.attempts).sum();
+        println!("Iterations: {}", total_iterations);
+    }
     
     match command {
         Some(ref command) => command.command,

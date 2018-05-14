@@ -17,3 +17,9 @@ lazy_static = "1.0"
 [[bench]]
 name = "engine"
 harness = false
+
+[profile.release]
+debug = true
+
+[features]
+benchmarking = []
