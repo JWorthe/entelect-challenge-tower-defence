@@ -12,7 +12,10 @@ pub fn read_state_from_file(filename: &str) -> Result<(engine::settings::GameSet
     let mut content = String::new();
     file.read_to_string(&mut content)?;
     let state: State = serde_json::from_str(content.as_ref())?;
-    Ok((state.to_engine_settings(), state.to_engine()))
+
+    let engine_settings = state.to_engine_settings();
+    let engine_state = state.to_engine(&engine_settings);
+    Ok((engine_settings, engine_state))
 }
 
 #[derive(Deserialize)]
@@ -116,16 +119,16 @@ impl State {
         }
     }
     
-    fn to_engine(&self) -> engine::GameState {
-        engine::GameState {
-            status: engine::GameStatus::Continue,
-            player: self.player().to_engine(),
-            opponent: self.opponent().to_engine(),
-            player_buildings: self.buildings_to_engine('A'),
-            opponent_buildings: self.buildings_to_engine('B'),
-            player_missiles: self.missiles_to_engine('A'),
-            opponent_missiles: self.missiles_to_engine('B'),
-        }
+    fn to_engine(&self, settings: &engine::settings::GameSettings) -> engine::GameState {
+        engine::GameState::new(
+            self.player().to_engine(),
+            self.opponent().to_engine(),
+            self.buildings_to_engine('A'),
+            self.buildings_to_engine('B'),
+            self.missiles_to_engine('A'),
+            self.missiles_to_engine('B'),
+            settings
+        )
     }
 
     fn player(&self) -> &Player {

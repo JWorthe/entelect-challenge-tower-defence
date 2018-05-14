@@ -60,15 +60,13 @@ fn simulate_to_endstate<R: Rng>(command_score: &mut CommandScore, settings: &Gam
 }
 
 fn random_player_move<R: Rng>(settings: &GameSettings, state: &GameState, rng: &mut R) -> Command {
-    let all_positions = state.unoccupied_player_cells(settings);
     let all_buildings = state.player_affordable_buildings(settings);
-    random_move(&all_positions, &all_buildings, rng)
+    random_move(&state.unoccupied_player_cells, &all_buildings, rng)
 }
 
 fn random_opponent_move<R: Rng>(settings: &GameSettings, state: &GameState, rng: &mut R) -> Command {
-    let all_positions = state.unoccupied_opponent_cells(settings);
     let all_buildings = state.opponent_affordable_buildings(settings);
-    random_move(&all_positions, &all_buildings, rng)
+    random_move(&state.unoccupied_opponent_cells, &all_buildings, rng)
 }
 
 fn random_move<R: Rng>(all_positions: &[Point], all_buildings: &[BuildingType], rng: &mut R) -> Command {
@@ -139,13 +137,12 @@ impl CommandScore {
 }
 
 fn enumerate_player_commands(settings: &GameSettings, state: &GameState) -> Vec<Command> {
-    let all_positions = state.unoccupied_player_cells(settings);
     let all_buildings = state.player_affordable_buildings(settings);
 
-    let mut commands = Vec::with_capacity(all_positions.len()*all_buildings.len()+1);
+    let mut commands = Vec::with_capacity(state.unoccupied_player_cells.len()*all_buildings.len()+1);
     commands.push(Command::Nothing);
 
-    for position in all_positions {
+    for &position in &state.unoccupied_player_cells {
         for &building in &all_buildings {
             commands.push(Command::Build(position, building));
         }

@@ -15,7 +15,9 @@ pub struct GameState {
     pub player: Player,
     pub opponent: Player,
     pub player_buildings: Vec<Building>,
+    pub unoccupied_player_cells: Vec<Point>,
     pub opponent_buildings: Vec<Building>,
+    pub unoccupied_opponent_cells: Vec<Point>,
     pub player_missiles: Vec<Missile>,
     pub opponent_missiles: Vec<Missile>
 }
@@ -54,6 +56,26 @@ pub struct Missile {
 }
 
 impl GameState {
+    pub fn new(player: Player, opponent: Player, player_buildings: Vec<Building>, opponent_buildings: Vec<Building>, player_missiles: Vec<Missile>, opponent_missiles: Vec<Missile>, settings: &GameSettings) -> GameState {
+        let unoccupied_player_cells = GameState::unoccupied_cells(
+            &player_buildings, Point::new(0, settings.size.x/2), Point::new(0, settings.size.y)
+        );
+        let unoccupied_opponent_cells = GameState::unoccupied_cells(
+            &opponent_buildings, Point::new(settings.size.x/2, settings.size.x), Point::new(0, settings.size.y)
+        );
+        GameState {
+            status: GameStatus::Continue,
+            player: player,
+            opponent: opponent,
+            player_buildings: player_buildings,
+            unoccupied_player_cells: unoccupied_player_cells,
+            opponent_buildings: opponent_buildings,
+            unoccupied_opponent_cells: unoccupied_opponent_cells,
+            player_missiles: player_missiles,
+            opponent_missiles: opponent_missiles
+        }
+    }
+
     pub fn simulate(&self, settings: &GameSettings, player_command: Command, opponent_command: Command) -> GameState {
         let mut state = self.clone();
         state.simulate_mut(settings, player_command, opponent_command);
@@ -65,8 +87,8 @@ impl GameState {
             return;
         }
 
-        GameState::perform_command(&mut self.player_buildings, &mut self.player, settings, player_command, &settings.size);
-        GameState::perform_command(&mut self.opponent_buildings, &mut self.opponent, settings, opponent_command, &settings.size);
+        GameState::perform_command(&mut self.player_buildings, &mut self.player, &mut self.unoccupied_player_cells, settings, player_command, &settings.size);
+        GameState::perform_command(&mut self.opponent_buildings, &mut self.opponent, &mut self.unoccupied_opponent_cells, settings, opponent_command, &settings.size);
 
         GameState::update_construction(&mut self.player_buildings);
         GameState::update_construction(&mut self.opponent_buildings);
@@ -75,9 +97,11 @@ impl GameState {
         GameState::add_missiles(&mut self.opponent_buildings, &mut self.opponent_missiles);
 
         GameState::move_missiles(&mut self.player_missiles, |p| p.move_right(&settings.size),
-                                 &mut self.opponent_buildings, &mut self.opponent);
+                                 &mut self.opponent_buildings, &mut self.opponent,
+                                 &mut self.unoccupied_opponent_cells);
         GameState::move_missiles(&mut self.opponent_missiles, |p| p.move_left(),
-                                 &mut self.player_buildings, &mut self.player);
+                                 &mut self.player_buildings, &mut self.player,
+                                 &mut self.unoccupied_player_cells);
 
         GameState::add_energy(&mut self.player, settings, &self.player_buildings);
         GameState::add_energy(&mut self.opponent, settings, &self.opponent_buildings);
@@ -85,7 +109,7 @@ impl GameState {
         GameState::update_status(self);
     }
 
-    fn perform_command(buildings: &mut Vec<Building>, player: &mut Player, settings: &GameSettings, command: Command, size: &Point) {
+    fn perform_command(buildings: &mut Vec<Building>, player: &mut Player, unoccupied_cells: &mut Vec<Point>, settings: &GameSettings, command: Command, size: &Point) {
         match command {
             Command::Nothing => { },
             Command::Build(p, b) => {
@@ -99,6 +123,7 @@ impl GameState {
 
                 player.energy -= blueprint.price;
                 buildings.push(Building::new(p, blueprint));
+                unoccupied_cells.retain(|&pos| pos != p);
             },
         }
     }
@@ -124,7 +149,7 @@ impl GameState {
         }
     }
 
-    fn move_missiles<F>(missiles: &mut Vec<Missile>, move_fn: F, opponent_buildings: &mut Vec<Building>, opponent: &mut Player)
+    fn move_missiles<F>(missiles: &mut Vec<Missile>, move_fn: F, opponent_buildings: &mut Vec<Building>, opponent: &mut Player, unoccupied_cells: &mut Vec<Point>,)
     where F: Fn(Point) -> Option<Point> {
         for missile in missiles.iter_mut() {
             for _ in 0..missile.speed {
@@ -139,7 +164,7 @@ impl GameState {
                         for hit in opponent_buildings.iter_mut().filter(|b| b.is_constructed() && b.pos == point/* && b.health > 0*/) { //TODO surely this health>0 belongs? Not what the real game engine is doing unfortunately
                             let damage = cmp::min(missile.damage, hit.health);
                             hit.health -= damage;
-                            missile.speed = 0;                    
+                            missile.speed = 0;
                         }
                     }
                 }
@@ -153,6 +178,10 @@ impl GameState {
             }
         }
         missiles.retain(|m| m.speed > 0);
+
+        for b in opponent_buildings.iter().filter(|b| b.health == 0) {
+            unoccupied_cells.push(b.pos);
+        }
         opponent_buildings.retain(|b| b.health > 0);
     }
 
@@ -172,32 +201,16 @@ impl GameState {
         };
     }
 
-    pub fn unoccupied_player_cells_in_row(&self, settings: &GameSettings, y: u8) -> Vec<Point> {
-        (0..settings.size.x/2)
-            .map(|x| Point::new(x, y))
-            .filter(|&p| !self.player_buildings.iter().any(|b| b.pos == p))
-            .collect()
+    pub fn unoccupied_player_cells_in_row(&self, y: u8) -> Vec<Point> {
+        self.unoccupied_player_cells.iter().filter(|p| p.y == y).cloned().collect()
     }
 
-    pub fn unoccupied_player_cells(&self, settings: &GameSettings) -> Vec<Point> {
-        let mut result = Vec::with_capacity(settings.size.y as usize *settings.size.x as usize / 2);
-        for y in 0..settings.size.y {
-            for x in 0..settings.size.x/2 {
+    fn unoccupied_cells(buildings: &[Building], bl: Point, tr: Point) -> Vec<Point> {
+        let mut result = Vec::with_capacity((tr.y-bl.y) as usize * (tr.x-bl.x) as usize);
+        for y in bl.y..tr.y {
+            for x in bl.x..tr.x {
                 let pos = Point::new(x, y);
-                if !self.player_buildings.iter().any(|b| b.pos == pos) {
-                    result.push(pos);
-                }
-            }
-        }
-        result
-    }
-
-    pub fn unoccupied_opponent_cells(&self, settings: &GameSettings) -> Vec<Point> {
-        let mut result = Vec::with_capacity(settings.size.y as usize *settings.size.x as usize / 2);
-        for y in 0..settings.size.y {
-            for x in settings.size.x/2..settings.size.x {
-                let pos = Point::new(x, y);
-                if !self.opponent_buildings.iter().any(|b| b.pos == pos) {
+                if !buildings.iter().any(|b| b.pos == pos) {
                     result.push(pos);
                 }
             }
