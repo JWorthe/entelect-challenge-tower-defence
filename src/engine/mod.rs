@@ -188,17 +188,29 @@ impl GameState {
     }
 
     pub fn unoccupied_player_cells(&self, settings: &GameSettings) -> Vec<Point> {
-        (0..settings.size.y)
-            .flat_map(|y| (0..settings.size.x/2).map(|x| Point::new(x, y)).collect::<Vec<_>>())
-            .filter(|&p| !self.player_buildings.iter().any(|b| b.pos == p))
-            .collect()
+        let mut result = Vec::with_capacity(settings.size.y as usize *settings.size.x as usize / 2);
+        for y in 0..settings.size.y {
+            for x in 0..settings.size.x/2 {
+                let pos = Point::new(x, y);
+                if !self.player_buildings.iter().any(|b| b.pos == pos) {
+                    result.push(pos);
+                }
+            }
+        }
+        result
     }
 
     pub fn unoccupied_opponent_cells(&self, settings: &GameSettings) -> Vec<Point> {
-        (0..settings.size.y)
-            .flat_map(|y| (settings.size.x/2..settings.size.x).map(|x| Point::new(x, y)).collect::<Vec<_>>())
-            .filter(|&p| !self.opponent_buildings.iter().any(|b| b.pos == p))
-            .collect()
+        let mut result = Vec::with_capacity(settings.size.y as usize *settings.size.x as usize / 2);
+        for y in 0..settings.size.y {
+            for x in settings.size.x/2..settings.size.x {
+                let pos = Point::new(x, y);
+                if !self.opponent_buildings.iter().any(|b| b.pos == pos) {
+                    result.push(pos);
+                }
+            }
+        }
+        result
     }
 
     pub fn player_affordable_buildings(&self, settings: &GameSettings) -> Vec<BuildingType> {

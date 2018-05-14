@@ -1,5 +1,6 @@
 use engine::settings::GameSettings;
 use engine::command::*;
+use engine::geometry::*;
 use engine::{GameState, GameStatus};
 
 use rand::{thread_rng, Rng};
@@ -64,12 +65,29 @@ fn simulate_to_endstate<R: Rng>(command_score: &mut CommandScore, settings: &Gam
 }
 
 fn random_player_move<R: Rng>(settings: &GameSettings, state: &GameState, rng: &mut R) -> Command {
-    let all_commands = enumerate_player_commands(settings, state);
-    rng.choose(&all_commands).cloned().unwrap_or(Command::Nothing)
+    let all_positions = state.unoccupied_player_cells(settings);
+    let all_buildings = state.player_affordable_buildings(settings);
+    random_move(&all_positions, &all_buildings, rng)
 }
+
 fn random_opponent_move<R: Rng>(settings: &GameSettings, state: &GameState, rng: &mut R) -> Command {
-    let all_commands = enumerate_opponent_commands(settings, state);
-    rng.choose(&all_commands).cloned().unwrap_or(Command::Nothing)
+    let all_positions = state.unoccupied_opponent_cells(settings);
+    let all_buildings = state.opponent_affordable_buildings(settings);
+    random_move(&all_positions, &all_buildings, rng)
+}
+
+fn random_move<R: Rng>(all_positions: &[Point], all_buildings: &[BuildingType], rng: &mut R) -> Command {
+    let number_of_commands = all_positions.len()*all_buildings.len()+1;
+    let choice_index = rng.gen_range(0, number_of_commands);
+
+    if choice_index == number_of_commands - 1 {
+        Command::Nothing
+    } else {
+        Command::Build(
+            all_positions[choice_index/all_buildings.len()],
+            all_buildings[choice_index%all_buildings.len()]
+        )
+    }
 }
 
 #[derive(Debug)]
@@ -128,27 +146,15 @@ impl CommandScore {
 fn enumerate_player_commands(settings: &GameSettings, state: &GameState) -> Vec<Command> {
     let all_positions = state.unoccupied_player_cells(settings);
     let all_buildings = state.player_affordable_buildings(settings);
-    
-    let build_commands = all_positions.iter()
-        .flat_map(|&pos| all_buildings.iter()
-                  .map(|&building| Command::Build(pos, building)).collect::<Vec<_>>()
-        );
-    let other_commands = vec!(Command::Nothing);
 
-    build_commands.chain(other_commands)
-        .collect()
-}
+    let mut commands = Vec::with_capacity(all_positions.len()*all_buildings.len()+1);
+    commands.push(Command::Nothing);
 
-fn enumerate_opponent_commands(settings: &GameSettings, state: &GameState) -> Vec<Command> {
-    let all_positions = state.unoccupied_opponent_cells(settings);
-    let all_buildings = state.opponent_affordable_buildings(settings);
-    
-    let build_commands = all_positions.iter()
-        .flat_map(|&pos| all_buildings.iter()
-                  .map(|&building| Command::Build(pos, building)).collect::<Vec<_>>()
-        );
-    let other_commands = vec!(Command::Nothing);
+    for position in all_positions {
+        for &building in &all_buildings {
+            commands.push(Command::Build(position, building));
+        }
+    }
 
-    build_commands.chain(other_commands)
-        .collect()
+    commands
 }
