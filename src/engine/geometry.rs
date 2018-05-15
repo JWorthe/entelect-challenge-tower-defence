@@ -25,3 +25,17 @@ impl Point {
         }
     }
 }
+
+use std::cmp::Ord;
+use std::cmp::Ordering;
+
+impl PartialOrd for Point {
+    fn partial_cmp(&self, other: &Point) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+impl Ord for Point {
+    fn cmp(&self, other: &Point) -> Ordering {
+        self.x.cmp(&other.x).then(self.y.cmp(&other.y))
+    }
+}

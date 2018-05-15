@@ -140,7 +140,7 @@ impl State {
 
     fn opponent(&self) -> &Player {
         self.players.iter()
-            .filter(|p| p.player_type != 'B')
+            .filter(|p| p.player_type == 'B')
             .next()
             .expect("Opponent character did not appear in state.json")
     }
@@ -173,7 +173,7 @@ impl BuildingBlueprint {
         engine::settings::BuildingSettings {
             price: self.price,
             health: self.health,
-            construction_time: self.construction_time,
+            construction_time: self.construction_time-2,
             weapon_damage: self.weapon_damage,
             weapon_speed: self.weapon_speed,
             weapon_cooldown_period: self.weapon_cooldown_period,

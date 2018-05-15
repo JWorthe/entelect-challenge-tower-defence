@@ -9,7 +9,7 @@ use self::settings::{GameSettings, BuildingSettings};
 use std::ops::Fn;
 use std::cmp;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct GameState {
     pub status: GameStatus,
     pub player: Player,
@@ -30,13 +30,13 @@ pub enum GameStatus {
     Draw
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Player {
     pub energy: u16,
     pub health: u16
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Building {
     pub pos: Point,
     pub health: u16,
@@ -48,7 +48,7 @@ pub struct Building {
     pub energy_generated_per_turn: u16
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Missile {
     pub pos: Point,
     pub damage: u16,
@@ -76,6 +76,19 @@ impl GameState {
         }
     }
 
+    /**
+     * Sorts the various arrays. Generally not necessary, but useful
+     * for tests that check equality between states.
+     */
+    pub fn sort(&mut self) {
+        self.player_buildings.sort_by_key(|b| b.pos);
+        self.unoccupied_player_cells.sort();
+        self.opponent_buildings.sort_by_key(|b| b.pos);
+        self.unoccupied_opponent_cells.sort();
+        self.player_missiles.sort_by_key(|b| b.pos);
+        self.opponent_missiles.sort_by_key(|b| b.pos);
+    }
+
     pub fn simulate(&self, settings: &GameSettings, player_command: Command, opponent_command: Command) -> GameState {
         let mut state = self.clone();
         state.simulate_mut(settings, player_command, opponent_command);
@@ -86,9 +99,6 @@ impl GameState {
         if self.status.is_complete() {
             return;
         }
-
-        GameState::perform_command(&mut self.player_buildings, &mut self.player, &mut self.unoccupied_player_cells, settings, player_command, &settings.size);
-        GameState::perform_command(&mut self.opponent_buildings, &mut self.opponent, &mut self.unoccupied_opponent_cells, settings, opponent_command, &settings.size);
 
         GameState::update_construction(&mut self.player_buildings);
         GameState::update_construction(&mut self.opponent_buildings);
@@ -106,6 +116,9 @@ impl GameState {
         GameState::add_energy(&mut self.player, settings, &self.player_buildings);
         GameState::add_energy(&mut self.opponent, settings, &self.opponent_buildings);
 
+        GameState::perform_command(&mut self.player_buildings, &mut self.player, &mut self.unoccupied_player_cells, settings, player_command, &settings.size);
+        GameState::perform_command(&mut self.opponent_buildings, &mut self.opponent, &mut self.unoccupied_opponent_cells, settings, opponent_command, &settings.size);
+        
         GameState::update_status(self);
     }
 
@@ -161,7 +174,7 @@ impl GameState {
                     },
                     Some(point) => {
                         missile.pos = point;
-                        for hit in opponent_buildings.iter_mut().filter(|b| b.is_constructed() && b.pos == point/* && b.health > 0*/) { //TODO surely this health>0 belongs? Not what the real game engine is doing unfortunately
+                        for hit in opponent_buildings.iter_mut().filter(|b| b.is_constructed() && b.pos == point) {
                             let damage = cmp::min(missile.damage, hit.health);
                             hit.health -= damage;
                             missile.speed = 0;
@@ -187,7 +200,7 @@ impl GameState {
 
     fn add_energy(player: &mut Player, settings: &GameSettings, buildings: &Vec<Building>) {
         player.energy += settings.energy_income;
-        player.energy += buildings.iter().map(|b| b.energy_generated_per_turn).sum::<u16>();
+        player.energy += buildings.iter().filter(|b| b.is_constructed()).map(|b| b.energy_generated_per_turn).sum::<u16>();
     }
 
     fn update_status(state: &mut GameState) {
