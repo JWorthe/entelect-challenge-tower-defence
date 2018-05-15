@@ -3,35 +3,20 @@ extern crate time;
 use time::{PreciseTime, Duration};
 
 use zombot::*;
-use zombot::engine::command::Command;
-
-use std::error::Error;
 
 const STATE_PATH: &str = "tests/state0.json";
+const STATE_BIG_PATH: &str = "tests/bigstate.json";
 
-const COMMAND_PATH: &str = "command.txt";
-
-use std::fs::File;
-use std::io::prelude::*;
 use std::process;
 
-fn choose_move(settings: &engine::settings::GameSettings, state: &engine::GameState, start_time: &PreciseTime) -> Command {
-    let max_time = Duration::milliseconds(1950);
-    strategy::monte_carlo::choose_move(settings, state, start_time, max_time)
-}
-
-
-fn write_command(filename: &str, command: Command) -> Result<(), Box<Error> > {
-    let mut file = File::create(filename)?;
-    write!(file, "{}", command)?;
-    Ok(())
-}
-
-
 fn main() {
+    normal_state();
+    big_state();
+}
+
+fn normal_state() {
+    println!("Normal size state file");
     let start_time = PreciseTime::now();
-    
-    println!("Reading in state.json file");
     let (settings, state) = match json::read_state_from_file(STATE_PATH) {
         Ok(ok) => ok,
         Err(error) => {
@@ -39,15 +24,20 @@ fn main() {
             process::exit(1);
         }
     };
-    let command = choose_move(&settings, &state, &start_time);
+    let max_time = Duration::milliseconds(1950);
+    strategy::monte_carlo::choose_move(&settings, &state, &start_time, max_time);
+}
 
-    match write_command(COMMAND_PATH, command) {
-        Ok(()) => {}
+fn big_state() {
+    println!("Big state file");
+    let start_time = PreciseTime::now();
+    let (settings, state) = match json::read_state_from_file(STATE_BIG_PATH) {
+        Ok(ok) => ok,
         Err(error) => {
-            println!("Error while writing command file: {}", error);
+            println!("Error while parsing JSON file: {}", error);
             process::exit(1);
         }
-    }
-
-    println!("Elapsed time: {}", start_time.to(PreciseTime::now()));
+    };
+    let max_time = Duration::milliseconds(1950);
+    strategy::monte_carlo::choose_move(&settings, &state, &start_time, max_time);
 }

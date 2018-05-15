@@ -4,8 +4,11 @@ build:
 test:
 	cargo test --release
 
+bench:
+	cargo run --release --features "benchmarking" --bin perf-test
+
 profile:
-	cargo build --release --features "benchmarking"
+	cargo build --release --features "benchmarking single-threaded"
 	mkdir -p target/profile
 	sudo perf record -F 1000 -a -g target/release/perf-test
 	sudo perf script > target/profile/out.perf
@@ -16,4 +19,4 @@ clean:
 	cargo clean
 
 
-.PHONY: build test profile clean
+.PHONY: build test bench profile clean

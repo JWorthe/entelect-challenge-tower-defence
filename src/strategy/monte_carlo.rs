@@ -8,19 +8,29 @@ const MAX_MOVES: u16 = 400;
 
 use time::{Duration, PreciseTime};
 
+#[cfg(not(feature = "single-threaded"))]
 use rayon::prelude::*;
 
 pub fn choose_move(settings: &GameSettings, state: &GameState, start_time: &PreciseTime, max_time: Duration) -> Command {
-    println!("Using MONTE_CARLO strategy");
-    
     let mut command_scores = CommandScore::init_command_scores(settings, state);
 
     loop {
-        command_scores.par_iter_mut()
-            .for_each(|score| {
-                let mut rng = thread_rng();
-                simulate_to_endstate(score, settings, state, &mut rng);
-            });
+        #[cfg(feature = "single-threaded")]
+        {
+            command_scores.iter_mut()
+                .for_each(|score| {
+                    let mut rng = thread_rng();
+                    simulate_to_endstate(score, settings, state, &mut rng);
+                });
+        }
+        #[cfg(not(feature = "single-threaded"))]
+        {
+            command_scores.par_iter_mut()
+                .for_each(|score| {
+                    let mut rng = thread_rng();
+                    simulate_to_endstate(score, settings, state, &mut rng);
+                });
+        }
         if start_time.to(PreciseTime::now()) > max_time {
             break;
         }
