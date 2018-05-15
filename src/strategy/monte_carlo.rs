@@ -8,16 +8,19 @@ const MAX_MOVES: u16 = 400;
 
 use time::{Duration, PreciseTime};
 
+use rayon::prelude::*;
+
 pub fn choose_move(settings: &GameSettings, state: &GameState, start_time: &PreciseTime, max_time: Duration) -> Command {
     println!("Using MONTE_CARLO strategy");
     
-    let mut rng = thread_rng();
     let mut command_scores = CommandScore::init_command_scores(settings, state);
 
     loop {
-        for mut score in &mut command_scores {
-            simulate_to_endstate(score, settings, state, &mut rng);
-        }
+        command_scores.par_iter_mut()
+            .for_each(|score| {
+                let mut rng = thread_rng();
+                simulate_to_endstate(score, settings, state, &mut rng);
+            });
         if start_time.to(PreciseTime::now()) > max_time {
             break;
         }

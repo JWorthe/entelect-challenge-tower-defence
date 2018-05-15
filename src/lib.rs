@@ -7,6 +7,8 @@ extern crate serde_derive;
 extern crate rand;
 extern crate time;
 
+extern crate rayon;
+
 pub mod json;
 pub mod engine;
 pub mod strategy;
