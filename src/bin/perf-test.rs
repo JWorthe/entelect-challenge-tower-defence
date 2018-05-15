@@ -7,7 +7,7 @@ use zombot::engine::command::Command;
 
 use std::error::Error;
 
-const STATE_PATH: &str = "init_state.json";
+const STATE_PATH: &str = "tests/state0.json";
 
 const COMMAND_PATH: &str = "command.txt";
 

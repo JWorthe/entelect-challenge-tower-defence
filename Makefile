@@ -6,10 +6,11 @@ test:
 
 profile:
 	cargo build --release --features "benchmarking"
+	mkdir -p target/profile
 	sudo perf record -F 1000 -a -g target/release/perf-test
-	sudo perf script > out.perf
-	../FlameGraph/stackcollapse-perf.pl out.perf > out.folded
-	../FlameGraph/flamegraph.pl out.folded > flamegraph.svg
+	sudo perf script > target/profile/out.perf
+	../FlameGraph/stackcollapse-perf.pl target/profile/out.perf > target/profile/out.folded
+	../FlameGraph/flamegraph.pl target/profile/out.folded > target/profile/flamegraph.svg
 
 clean:
 	cargo clean
