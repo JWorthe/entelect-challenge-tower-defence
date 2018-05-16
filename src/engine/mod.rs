@@ -165,7 +165,9 @@ impl GameState {
                     player.energy_generated += building.energy_generated_per_turn;
                     buildings.push(building);
                 }
-                unoccupied_cells.retain(|&pos| pos != p);
+
+                let to_remove_index = unoccupied_cells.iter().position(|&pos| pos == p).unwrap();
+                unoccupied_cells.swap_remove(to_remove_index);
             },
         }
     }
