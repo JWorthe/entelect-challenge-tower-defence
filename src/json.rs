@@ -2,7 +2,6 @@ use std::fs::File;
 use std::io::prelude::*;
 use serde_json;
 use std::error::Error;
-use std::cmp;
 
 use ::engine;
 
@@ -123,7 +122,9 @@ impl State {
         engine::GameState::new(
             self.player().to_engine(),
             self.opponent().to_engine(),
+            self.unconstructed_buildings_to_engine('A'),
             self.buildings_to_engine('A'),
+            self.unconstructed_buildings_to_engine('B'),
             self.buildings_to_engine('B'),
             self.missiles_to_engine('A'),
             self.missiles_to_engine('B'),
@@ -145,11 +146,22 @@ impl State {
             .expect("Opponent character did not appear in state.json")
     }
 
+    fn unconstructed_buildings_to_engine(&self, player_type: char) -> Vec<engine::UnconstructedBuilding> {
+        self.game_map.iter()
+            .flat_map(|row| row.iter()
+                      .flat_map(|cell| cell.buildings.iter()
+                                .filter(|b| b.player_type == player_type && b.construction_time_left > 0)
+                                .map(|b| b.to_engine_unconstructed())
+                      )
+            )
+            .collect()
+    }
+    
     fn buildings_to_engine(&self, player_type: char) -> Vec<engine::Building> {
         self.game_map.iter()
             .flat_map(|row| row.iter()
                       .flat_map(|cell| cell.buildings.iter()
-                                .filter(|b| b.player_type == player_type)
+                                .filter(|b| b.player_type == player_type && b.construction_time_left <= 0)
                                 .map(|b| b.to_engine())
                       )
             )
@@ -196,10 +208,21 @@ impl BuildingState {
         engine::Building {
             pos: engine::geometry::Point::new(self.x, self.y),
             health: self.health,
-            construction_time_left: cmp::max(0, self.construction_time_left) as u8,
             weapon_damage: self.weapon_damage,
             weapon_speed: self.weapon_speed,
             weapon_cooldown_time_left: self.weapon_cooldown_time_left,
+            weapon_cooldown_period: self.weapon_cooldown_period,
+            energy_generated_per_turn: self.energy_generated_per_turn,
+        }
+    }
+
+    fn to_engine_unconstructed(&self) -> engine::UnconstructedBuilding {
+        engine::UnconstructedBuilding {
+            pos: engine::geometry::Point::new(self.x, self.y),
+            health: self.health,
+            construction_time_left: self.construction_time_left as u8, // > 0 check already happened
+            weapon_damage: self.weapon_damage,
+            weapon_speed: self.weapon_speed,
             weapon_cooldown_period: self.weapon_cooldown_period,
             energy_generated_per_turn: self.energy_generated_per_turn,
         }

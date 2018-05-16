@@ -14,8 +14,10 @@ pub struct GameState {
     pub status: GameStatus,
     pub player: Player,
     pub opponent: Player,
+    pub player_unconstructed_buildings: Vec<UnconstructedBuilding>,
     pub player_buildings: Vec<Building>,
     pub unoccupied_player_cells: Vec<Point>,
+    pub opponent_unconstructed_buildings: Vec<UnconstructedBuilding>,
     pub opponent_buildings: Vec<Building>,
     pub unoccupied_opponent_cells: Vec<Point>,
     pub player_missiles: Vec<Missile>,
@@ -37,10 +39,20 @@ pub struct Player {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct Building {
+pub struct UnconstructedBuilding {
     pub pos: Point,
     pub health: u8,
     pub construction_time_left: u8,
+    pub weapon_damage: u8,
+    pub weapon_speed: u8,
+    pub weapon_cooldown_period: u8,
+    pub energy_generated_per_turn: u16
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Building {
+    pub pos: Point,
+    pub health: u8,
     pub weapon_damage: u8,
     pub weapon_speed: u8,
     pub weapon_cooldown_time_left: u8,
@@ -56,19 +68,27 @@ pub struct Missile {
 }
 
 impl GameState {
-    pub fn new(player: Player, opponent: Player, player_buildings: Vec<Building>, opponent_buildings: Vec<Building>, player_missiles: Vec<Missile>, opponent_missiles: Vec<Missile>, settings: &GameSettings) -> GameState {
+    pub fn new(
+        player: Player, opponent: Player,
+        player_unconstructed_buildings: Vec<UnconstructedBuilding>, player_buildings: Vec<Building>,
+        opponent_unconstructed_buildings: Vec<UnconstructedBuilding>, opponent_buildings: Vec<Building>,
+        player_missiles: Vec<Missile>, opponent_missiles: Vec<Missile>,
+        settings: &GameSettings) -> GameState {
+        
         let unoccupied_player_cells = GameState::unoccupied_cells(
-            &player_buildings, Point::new(0, 0), Point::new(settings.size.x/2, settings.size.y)
+            &player_buildings, &player_unconstructed_buildings, Point::new(0, 0), Point::new(settings.size.x/2, settings.size.y)
         );
         let unoccupied_opponent_cells = GameState::unoccupied_cells(
-            &opponent_buildings, Point::new(settings.size.x/2, 0), Point::new(settings.size.x, settings.size.y)
+            &opponent_buildings, &opponent_unconstructed_buildings, Point::new(settings.size.x/2, 0), Point::new(settings.size.x, settings.size.y)
         );
         GameState {
             status: GameStatus::Continue,
             player: player,
             opponent: opponent,
+            player_unconstructed_buildings: player_unconstructed_buildings,
             player_buildings: player_buildings,
             unoccupied_player_cells: unoccupied_player_cells,
+            opponent_unconstructed_buildings: opponent_unconstructed_buildings,
             opponent_buildings: opponent_buildings,
             unoccupied_opponent_cells: unoccupied_opponent_cells,
             player_missiles: player_missiles,
@@ -81,8 +101,10 @@ impl GameState {
      * for tests that check equality between states.
      */
     pub fn sort(&mut self) {
+        self.player_unconstructed_buildings.sort_by_key(|b| b.pos);
         self.player_buildings.sort_by_key(|b| b.pos);
         self.unoccupied_player_cells.sort();
+        self.opponent_unconstructed_buildings.sort_by_key(|b| b.pos);
         self.opponent_buildings.sort_by_key(|b| b.pos);
         self.unoccupied_opponent_cells.sort();
         self.player_missiles.sort_by_key(|b| b.pos);
@@ -100,8 +122,8 @@ impl GameState {
             return;
         }
 
-        GameState::update_construction(&mut self.player_buildings);
-        GameState::update_construction(&mut self.opponent_buildings);
+        GameState::update_construction(&mut self.player_unconstructed_buildings, &mut self.player_buildings);
+        GameState::update_construction(&mut self.opponent_unconstructed_buildings, &mut self.opponent_buildings);
 
         GameState::add_missiles(&mut self.player_buildings, &mut self.player_missiles);
         GameState::add_missiles(&mut self.opponent_buildings, &mut self.opponent_missiles);
@@ -116,13 +138,13 @@ impl GameState {
         GameState::add_energy(&mut self.player, settings, &self.player_buildings);
         GameState::add_energy(&mut self.opponent, settings, &self.opponent_buildings);
 
-        GameState::perform_command(&mut self.player_buildings, &mut self.player, &mut self.unoccupied_player_cells, settings, player_command, &settings.size);
-        GameState::perform_command(&mut self.opponent_buildings, &mut self.opponent, &mut self.unoccupied_opponent_cells, settings, opponent_command, &settings.size);
+        GameState::perform_command(&mut self.player_unconstructed_buildings, &mut self.player_buildings,  &mut self.player, &mut self.unoccupied_player_cells, settings, player_command, &settings.size);
+        GameState::perform_command(&mut self.opponent_unconstructed_buildings, &mut self.opponent_buildings, &mut self.opponent, &mut self.unoccupied_opponent_cells, settings, opponent_command, &settings.size);
         
         GameState::update_status(self);
     }
 
-    fn perform_command(buildings: &mut Vec<Building>, player: &mut Player, unoccupied_cells: &mut Vec<Point>, settings: &GameSettings, command: Command, size: &Point) {
+    fn perform_command(unconstructed_buildings: &mut Vec<UnconstructedBuilding>, buildings: &mut Vec<Building>, player: &mut Player, unoccupied_cells: &mut Vec<Point>, settings: &GameSettings, command: Command, size: &Point) {
         match command {
             Command::Nothing => { },
             Command::Build(p, b) => {
@@ -135,16 +157,24 @@ impl GameState {
                 debug_assert!(player.energy >= blueprint.price);
 
                 player.energy -= blueprint.price;
-                buildings.push(Building::new(p, blueprint));
+                if blueprint.construction_time > 0 {
+                    unconstructed_buildings.push(UnconstructedBuilding::new(p, blueprint));
+                } else {
+                    buildings.push(Building::new(p, blueprint));
+                }
                 unoccupied_cells.retain(|&pos| pos != p);
             },
         }
     }
 
-    fn update_construction(buildings: &mut Vec<Building>) {
-        for building in buildings.iter_mut().filter(|b| !b.is_constructed()) {
+    fn update_construction(unconstructed_buildings: &mut Vec<UnconstructedBuilding>, buildings: &mut Vec<Building>) {
+        for building in unconstructed_buildings.iter_mut() {
             building.construction_time_left -= 1;
+            if building.is_constructed() {
+                buildings.push(building.to_building());
+            }
         }
+        unconstructed_buildings.retain(|b| !b.is_constructed());
     }
 
     fn add_missiles(buildings: &mut Vec<Building>, missiles: &mut Vec<Missile>) {
@@ -174,7 +204,7 @@ impl GameState {
                     },
                     Some(point) => {
                         missile.pos = point;
-                        for hit in opponent_buildings.iter_mut().filter(|b| b.is_constructed() && b.pos == point) {
+                        for hit in opponent_buildings.iter_mut().filter(|b| b.pos == point) {
                             let damage = cmp::min(missile.damage, hit.health);
                             hit.health -= damage;
                             missile.speed = 0;
@@ -200,7 +230,7 @@ impl GameState {
 
     fn add_energy(player: &mut Player, settings: &GameSettings, buildings: &Vec<Building>) {
         player.energy += settings.energy_income;
-        player.energy += buildings.iter().filter(|b| b.is_constructed()).map(|b| b.energy_generated_per_turn).sum::<u16>();
+        player.energy += buildings.iter().map(|b| b.energy_generated_per_turn).sum::<u16>();
     }
 
     fn update_status(state: &mut GameState) {
@@ -218,12 +248,12 @@ impl GameState {
         self.unoccupied_player_cells.iter().filter(|p| p.y == y).cloned().collect()
     }
 
-    fn unoccupied_cells(buildings: &[Building], bl: Point, tr: Point) -> Vec<Point> {
+    fn unoccupied_cells(buildings: &[Building], unconstructed_buildings: &[UnconstructedBuilding], bl: Point, tr: Point) -> Vec<Point> {
         let mut result = Vec::with_capacity((tr.y-bl.y) as usize * (tr.x-bl.x) as usize);
         for y in bl.y..tr.y {
             for x in bl.x..tr.x {
                 let pos = Point::new(x, y);
-                if !buildings.iter().any(|b| b.pos == pos) {
+                if !buildings.iter().any(|b| b.pos == pos) && !unconstructed_buildings.iter().any(|b| b.pos == pos) {
                     result.push(pos);
                 }
             }
@@ -272,12 +302,41 @@ impl Player {
 
 }
 
+impl UnconstructedBuilding {
+    pub fn new(pos: Point, blueprint: &BuildingSettings) -> UnconstructedBuilding {
+        UnconstructedBuilding {
+            pos: pos,
+            health: blueprint.health,
+            construction_time_left: blueprint.construction_time,
+            weapon_damage: blueprint.weapon_damage,
+            weapon_speed: blueprint.weapon_speed,
+            weapon_cooldown_period: blueprint.weapon_cooldown_period,
+            energy_generated_per_turn: blueprint.energy_generated_per_turn
+        }
+    }
+    
+    fn is_constructed(&self) -> bool {
+        self.construction_time_left == 0
+    }
+
+    fn to_building(&self) -> Building {
+        Building {
+            pos: self.pos,
+            health: self.health,
+            weapon_damage: self.weapon_damage,
+            weapon_speed: self.weapon_speed,
+            weapon_cooldown_time_left: 0,
+            weapon_cooldown_period: self.weapon_cooldown_period,
+            energy_generated_per_turn: self.energy_generated_per_turn
+        }
+    }
+}
+
 impl Building {
     pub fn new(pos: Point, blueprint: &BuildingSettings) -> Building {
         Building {
             pos: pos,
             health: blueprint.health,
-            construction_time_left: blueprint.construction_time,
             weapon_damage: blueprint.weapon_damage,
             weapon_speed: blueprint.weapon_speed,
             weapon_cooldown_time_left: 0,
@@ -285,13 +344,9 @@ impl Building {
             energy_generated_per_turn: blueprint.energy_generated_per_turn
         }
     }
-
-    fn is_constructed(&self) -> bool {
-        self.construction_time_left == 0
-    }
-
+    
     fn is_shooty(&self) -> bool {
-        self.is_constructed() && self.weapon_damage > 0
+        self.weapon_damage > 0
     }
 }
 
