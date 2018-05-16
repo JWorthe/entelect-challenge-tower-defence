@@ -48,9 +48,9 @@ struct BuildingStats {
 #[serde(rename_all = "camelCase")]
 struct BuildingBlueprint {
     price: u16,
-    health: u16,
+    health: u8,
     construction_time: u8,
-    weapon_damage: u16,
+    weapon_damage: u8,
     weapon_speed: u8,
     weapon_cooldown_period: u8,
     energy_generated_per_turn: u16,
@@ -63,7 +63,7 @@ struct BuildingBlueprint {
 struct Player {
     player_type: char,
     energy: u16,
-    health: u16,
+    health: u8,
     //hits_taken: u32,
     //score: u32
 }
@@ -81,10 +81,10 @@ struct GameCell {
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct BuildingState {
-    health: u16,
+    health: u8,
     construction_time_left: i8,
     //price: u16,
-    weapon_damage: u16,
+    weapon_damage: u8,
     weapon_speed: u8,
     weapon_cooldown_time_left: u8,
     weapon_cooldown_period: u8,
@@ -100,7 +100,7 @@ struct BuildingState {
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct MissileState {
-    damage: u16,
+    damage: u8,
     speed: u8,
     x: u8,
     y: u8,

@@ -33,15 +33,15 @@ pub enum GameStatus {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Player {
     pub energy: u16,
-    pub health: u16
+    pub health: u8
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Building {
     pub pos: Point,
-    pub health: u16,
+    pub health: u8,
     pub construction_time_left: u8,
-    pub weapon_damage: u16,
+    pub weapon_damage: u8,
     pub weapon_speed: u8,
     pub weapon_cooldown_time_left: u8,
     pub weapon_cooldown_period: u8,
@@ -51,7 +51,7 @@ pub struct Building {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Missile {
     pub pos: Point,
-    pub damage: u16,
+    pub damage: u8,
     pub speed: u8,
 }
 

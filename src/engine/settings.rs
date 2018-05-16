@@ -13,9 +13,9 @@ pub struct GameSettings {
 #[derive(Debug)]
 pub struct BuildingSettings {
     pub price: u16,
-    pub health: u16,
+    pub health: u8,
     pub construction_time: u8,
-    pub weapon_damage: u16,
+    pub weapon_damage: u8,
     pub weapon_speed: u8,
     pub weapon_cooldown_period: u8,
     pub energy_generated_per_turn: u16
