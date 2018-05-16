@@ -119,13 +119,15 @@ impl State {
     }
     
     fn to_engine(&self, settings: &engine::settings::GameSettings) -> engine::GameState {
+        let player_buildings = self.buildings_to_engine('A');
+        let opponent_buildings = self.buildings_to_engine('B');
         engine::GameState::new(
-            self.player().to_engine(),
-            self.opponent().to_engine(),
+            self.player().to_engine(settings, &player_buildings),
+            self.opponent().to_engine(settings, &opponent_buildings),
             self.unconstructed_buildings_to_engine('A'),
-            self.buildings_to_engine('A'),
+            player_buildings,
             self.unconstructed_buildings_to_engine('B'),
-            self.buildings_to_engine('B'),
+            opponent_buildings,
             self.missiles_to_engine('A'),
             self.missiles_to_engine('B'),
             settings
@@ -195,11 +197,8 @@ impl BuildingBlueprint {
 }
 
 impl Player {
-    fn to_engine(&self) -> engine::Player {
-        engine::Player {
-            energy: self.energy,
-            health: self.health,
-        }
+    fn to_engine(&self, settings: &engine::settings::GameSettings, buildings: &[engine::Building]) -> engine::Player {
+        engine::Player::new(self.energy, self.health, settings, buildings)
     }
 }
 

@@ -35,7 +35,8 @@ pub enum GameStatus {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Player {
     pub energy: u16,
-    pub health: u8
+    pub health: u8,
+    pub energy_generated: u16,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -122,8 +123,8 @@ impl GameState {
             return;
         }
 
-        GameState::update_construction(&mut self.player_unconstructed_buildings, &mut self.player_buildings);
-        GameState::update_construction(&mut self.opponent_unconstructed_buildings, &mut self.opponent_buildings);
+        GameState::update_construction(&mut self.player_unconstructed_buildings, &mut self.player_buildings, &mut self.player);
+        GameState::update_construction(&mut self.opponent_unconstructed_buildings, &mut self.opponent_buildings, &mut self.opponent);
 
         GameState::add_missiles(&mut self.player_buildings, &mut self.player_missiles);
         GameState::add_missiles(&mut self.opponent_buildings, &mut self.opponent_missiles);
@@ -135,8 +136,8 @@ impl GameState {
                                  &mut self.player_buildings, &mut self.player,
                                  &mut self.unoccupied_player_cells);
 
-        GameState::add_energy(&mut self.player, settings, &self.player_buildings);
-        GameState::add_energy(&mut self.opponent, settings, &self.opponent_buildings);
+        GameState::add_energy(&mut self.player);
+        GameState::add_energy(&mut self.opponent);
 
         GameState::perform_command(&mut self.player_unconstructed_buildings, &mut self.player_buildings,  &mut self.player, &mut self.unoccupied_player_cells, settings, player_command, &settings.size);
         GameState::perform_command(&mut self.opponent_unconstructed_buildings, &mut self.opponent_buildings, &mut self.opponent, &mut self.unoccupied_opponent_cells, settings, opponent_command, &settings.size);
@@ -160,17 +161,20 @@ impl GameState {
                 if blueprint.construction_time > 0 {
                     unconstructed_buildings.push(UnconstructedBuilding::new(p, blueprint));
                 } else {
-                    buildings.push(Building::new(p, blueprint));
+                    let building = Building::new(p, blueprint);
+                    player.energy_generated += building.energy_generated_per_turn;
+                    buildings.push(building);
                 }
                 unoccupied_cells.retain(|&pos| pos != p);
             },
         }
     }
 
-    fn update_construction(unconstructed_buildings: &mut Vec<UnconstructedBuilding>, buildings: &mut Vec<Building>) {
+    fn update_construction(unconstructed_buildings: &mut Vec<UnconstructedBuilding>, buildings: &mut Vec<Building>, player: &mut Player) {
         for building in unconstructed_buildings.iter_mut() {
             building.construction_time_left -= 1;
             if building.is_constructed() {
+                player.energy_generated += building.energy_generated_per_turn;
                 buildings.push(building.to_building());
             }
         }
@@ -224,13 +228,13 @@ impl GameState {
 
         for b in opponent_buildings.iter().filter(|b| b.health == 0) {
             unoccupied_cells.push(b.pos);
+            opponent.energy_generated -= b.energy_generated_per_turn;
         }
         opponent_buildings.retain(|b| b.health > 0);
     }
 
-    fn add_energy(player: &mut Player, settings: &GameSettings, buildings: &Vec<Building>) {
-        player.energy += settings.energy_income;
-        player.energy += buildings.iter().map(|b| b.energy_generated_per_turn).sum::<u16>();
+    fn add_energy(player: &mut Player) {
+        player.energy += player.energy_generated;
     }
 
     fn update_status(state: &mut GameState) {
@@ -284,6 +288,14 @@ impl GameStatus {
 }
 
 impl Player {
+    pub fn new(energy: u16, health: u8, settings: &GameSettings, buildings: &[Building]) -> Player {
+        Player {
+            energy: energy,
+            health: health,
+            energy_generated: settings.energy_income + buildings.iter().map(|b| b.energy_generated_per_turn).sum::<u16>()
+        }
+    }
+    
     pub fn can_afford_all_buildings(&self, settings: &GameSettings) -> bool {
         self.can_afford_attack_buildings(settings) &&
             self.can_afford_defence_buildings(settings) &&
