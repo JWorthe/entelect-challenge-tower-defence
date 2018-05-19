@@ -151,23 +151,17 @@ impl CommandScore {
     }
     
     fn init_command_scores(settings: &GameSettings, state: &GameState) -> Vec<CommandScore> {
-        enumerate_player_commands(settings, state).iter()
-            .map(|&c| CommandScore::new(c))
-            .collect()
-    }
-}
+        let all_buildings = state.player_affordable_buildings(settings);
 
-fn enumerate_player_commands(settings: &GameSettings, state: &GameState) -> Vec<Command> {
-    let all_buildings = state.player_affordable_buildings(settings);
+        let mut commands = Vec::with_capacity(state.unoccupied_player_cells.len()*all_buildings.len()+1);
+        commands.push(CommandScore::new(Command::Nothing));
 
-    let mut commands = Vec::with_capacity(state.unoccupied_player_cells.len()*all_buildings.len()+1);
-    commands.push(Command::Nothing);
-
-    for &position in &state.unoccupied_player_cells {
-        for &building in &all_buildings {
-            commands.push(Command::Build(position, building));
+        for &position in &state.unoccupied_player_cells {
+            for &building in &all_buildings {
+                commands.push(CommandScore::new(Command::Build(position, building)));
+            }
         }
-    }
 
-    commands
+        commands
+    }
 }
