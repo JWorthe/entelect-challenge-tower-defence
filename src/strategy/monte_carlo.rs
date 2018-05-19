@@ -3,7 +3,8 @@ use engine::command::*;
 use engine::geometry::*;
 use engine::{GameState, GameStatus};
 
-use rand::{thread_rng, Rng};
+use rand::{Rng, XorShiftRng, SeedableRng};
+    
 const MAX_MOVES: u16 = 400;
 
 use time::{Duration, PreciseTime};
@@ -13,13 +14,13 @@ use rayon::prelude::*;
 
 pub fn choose_move(settings: &GameSettings, state: &GameState, start_time: &PreciseTime, max_time: Duration) -> Command {
     let mut command_scores = CommandScore::init_command_scores(settings, state);
-
+    
     loop {
         #[cfg(feature = "single-threaded")]
         {
             command_scores.iter_mut()
                 .for_each(|score| {
-                    let mut rng = thread_rng();
+                    let mut rng = XorShiftRng::from_seed(score.next_seed);
                     simulate_to_endstate(score, settings, state, &mut rng);
                 });
         }
@@ -27,7 +28,7 @@ pub fn choose_move(settings: &GameSettings, state: &GameState, start_time: &Prec
         {
             command_scores.par_iter_mut()
                 .for_each(|score| {
-                    let mut rng = thread_rng();
+                    let mut rng = XorShiftRng::from_seed(score.next_seed);
                     simulate_to_endstate(score, settings, state, &mut rng);
                 });
         }
@@ -64,11 +65,12 @@ fn simulate_to_endstate<R: Rng>(command_score: &mut CommandScore, settings: &Gam
         state_mut.simulate_mut(settings, player_command, opponent_command);
     }
 
+    let next_seed = [rng.next_u32(), rng.next_u32(), rng.next_u32(), rng.next_u32()];
     match state_mut.status {
-        GameStatus::PlayerWon => command_score.add_victory(),
-        GameStatus::OpponentWon => command_score.add_defeat(),
-        GameStatus::Continue => command_score.add_stalemate(),
-        GameStatus::Draw => command_score.add_draw()
+        GameStatus::PlayerWon => command_score.add_victory(next_seed),
+        GameStatus::OpponentWon => command_score.add_defeat(next_seed),
+        GameStatus::Continue => command_score.add_stalemate(next_seed),
+        GameStatus::Draw => command_score.add_draw(next_seed)
     }
 }
 
@@ -103,7 +105,8 @@ struct CommandScore {
     defeats: u32,
     draws: u32,
     stalemates: u32,
-    attempts: u32
+    attempts: u32,
+    next_seed: [u32; 4]
 }
 
 impl CommandScore {
@@ -114,28 +117,33 @@ impl CommandScore {
             defeats: 0,
             draws: 0,
             stalemates: 0,
-            attempts: 0
+            attempts: 0,
+            next_seed: [0x7b6ae1f4, 0x413ce90f, 0x67816799, 0x770a6bda]
         }
     }
 
-    fn add_victory(&mut self) {
+    fn add_victory(&mut self, next_seed: [u32; 4]) {
         self.victories += 1;
         self.attempts += 1;
+        self.next_seed = next_seed;
     }
 
-    fn add_defeat(&mut self) {
+    fn add_defeat(&mut self, next_seed: [u32; 4]) {
         self.defeats += 1;
         self.attempts += 1;
+        self.next_seed = next_seed;
     }
 
-    fn add_draw(&mut self) {
+    fn add_draw(&mut self, next_seed: [u32; 4]) {
         self.draws += 1;
         self.attempts += 1;
+        self.next_seed = next_seed;
     }
 
-    fn add_stalemate(&mut self) {
+    fn add_stalemate(&mut self, next_seed: [u32; 4]) {
         self.stalemates += 1;
         self.attempts += 1;
+        self.next_seed = next_seed;
     }
 
     fn win_ratio(&self) -> u32 {
