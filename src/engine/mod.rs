@@ -205,11 +205,19 @@ impl GameState {
                     missile.speed = 0;
                 }
                 else {
-                    // TODO latest game engine may be checking building health here
-                    if let Some(mut hit) = opponent_buildings.iter_mut().find(|b| b.pos == missile.pos) {
-                        let damage = cmp::min(missile.damage, hit.health);
-                        hit.health -= damage;
-                        missile.speed = 0;
+                    for b in 0..opponent_buildings.len() {
+                        // TODO latest game engine may be checking building health here
+                        if opponent_buildings[b].pos == missile.pos {
+                            let damage = cmp::min(missile.damage, opponent_buildings[b].health);
+                            opponent_buildings[b].health -= damage;
+                            missile.speed = 0;
+                            if opponent_buildings[b].health == 0 {
+                                unoccupied_cells.push(opponent_buildings[b].pos);
+                                opponent.energy_generated -= opponent_buildings[b].energy_generated_per_turn;
+                                opponent_buildings.swap_remove(b);
+                                break;
+                            }
+                        }
                     }
                 }
                 
@@ -219,12 +227,6 @@ impl GameState {
             }
         }
         swap_retain(missiles, |m| m.speed > 0);
-
-        for b in opponent_buildings.iter().filter(|b| b.health == 0) {
-            unoccupied_cells.push(b.pos);
-            opponent.energy_generated -= b.energy_generated_per_turn;
-        }
-        swap_retain(opponent_buildings, |b| b.health > 0);
     }
 
     fn add_energy(player: &mut Player) {
