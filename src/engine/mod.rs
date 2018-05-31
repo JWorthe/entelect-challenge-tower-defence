@@ -271,10 +271,13 @@ impl GameState {
     }
 
     fn affordable_buildings(energy: u16, settings: &GameSettings) -> Vec<BuildingType> {
-        BuildingType::all().iter()
-            .filter(|&b| settings.building_settings(*b).price <= energy)
-            .cloned()
-            .collect()
+        let mut result = Vec::with_capacity(3);
+        for b in BuildingType::all().iter() {
+            if settings.building_settings(*b).price <= energy {
+                result.push(*b);
+            }
+        }
+        result
     }
 }
 
