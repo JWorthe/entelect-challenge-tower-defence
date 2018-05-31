@@ -6,7 +6,7 @@ use self::command::{Command, BuildingType};
 use self::geometry::Point;
 use self::settings::{GameSettings, BuildingSettings};
 
-use std::ops::Fn;
+use std::ops::FnMut;
 use std::cmp;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -123,12 +123,14 @@ impl GameState {
         GameState::add_missiles(&mut self.player_buildings, &mut self.player_missiles);
         GameState::add_missiles(&mut self.opponent_buildings, &mut self.opponent_missiles);
 
-        GameState::move_missiles(&mut self.player_missiles, |p| p.move_right(&settings.size),
+        GameState::move_missiles(&mut self.player_missiles, |p| p.wrapping_move_right(),
                                  &mut self.opponent_buildings, &mut self.opponent,
-                                 &mut self.unoccupied_opponent_cells);
-        GameState::move_missiles(&mut self.opponent_missiles, |p| p.move_left(),
+                                 &mut self.unoccupied_opponent_cells,
+                                 &settings);
+        GameState::move_missiles(&mut self.opponent_missiles, |p| p.wrapping_move_left(),
                                  &mut self.player_buildings, &mut self.player,
-                                 &mut self.unoccupied_player_cells);
+                                 &mut self.unoccupied_player_cells,
+                                 &settings);
 
         GameState::add_energy(&mut self.player);
         GameState::add_energy(&mut self.opponent);
@@ -192,39 +194,37 @@ impl GameState {
         }
     }
 
-    fn move_missiles<F>(missiles: &mut Vec<Missile>, move_fn: F, opponent_buildings: &mut Vec<Building>, opponent: &mut Player, unoccupied_cells: &mut Vec<Point>,)
-    where F: Fn(Point) -> Option<Point> {
+    fn move_missiles<F>(missiles: &mut Vec<Missile>, mut wrapping_move_fn: F, opponent_buildings: &mut Vec<Building>, opponent: &mut Player, unoccupied_cells: &mut Vec<Point>, settings: &GameSettings)
+    where F: FnMut(&mut Point) {
         for missile in missiles.iter_mut() {
             for _ in 0..missile.speed {
-                match move_fn(missile.pos) {
-                    None => {
-                        let damage = cmp::min(missile.damage, opponent.health);
-                        opponent.health -= damage;
+                wrapping_move_fn(&mut missile.pos);
+                if missile.pos.x >= settings.size.x {
+                    let damage = cmp::min(missile.damage, opponent.health);
+                    opponent.health -= damage;
+                    missile.speed = 0;
+                }
+                else {
+                    // TODO latest game engine may be checking building health here
+                    if let Some(mut hit) = opponent_buildings.iter_mut().find(|b| b.pos == missile.pos) {
+                        let damage = cmp::min(missile.damage, hit.health);
+                        hit.health -= damage;
                         missile.speed = 0;
-                    },
-                    Some(point) => {
-                        missile.pos = point;
-                        // TODO latest game engine may be checking building health here
-                        if let Some(mut hit) = opponent_buildings.iter_mut().find(|b| b.pos == point) {
-                            let damage = cmp::min(missile.damage, hit.health);
-                            hit.health -= damage;
-                            missile.speed = 0;
-                        }
                     }
                 }
-
+                
                 if missile.speed == 0 {
                     break;
                 }
             }
         }
-        missiles.retain(|m| m.speed > 0);
+        swap_retain(missiles, |m| m.speed > 0);
 
         for b in opponent_buildings.iter().filter(|b| b.health == 0) {
             unoccupied_cells.push(b.pos);
             opponent.energy_generated -= b.energy_generated_per_turn;
         }
-        opponent_buildings.retain(|b| b.health > 0);
+        swap_retain(opponent_buildings, |b| b.health > 0);
     }
 
     fn add_energy(player: &mut Player) {
@@ -360,3 +360,15 @@ impl Building {
 }
 
 
+fn swap_retain<T, F>(v: &mut Vec<T>, mut pred: F)
+    where F: FnMut(&T) -> bool
+{
+    let mut new_len = v.len();
+    for i in (0..v.len()).rev() {
+        if !pred(&v[i]) {
+            new_len -= 1;
+            v.swap(i, new_len);
+        }
+    }
+    v.truncate(new_len);
+}

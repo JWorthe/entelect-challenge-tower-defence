@@ -24,6 +24,13 @@ impl Point {
             })
         }
     }
+
+    pub fn wrapping_move_left(&mut self) {
+        self.x = self.x.wrapping_sub(1);
+    }
+    pub fn wrapping_move_right(&mut self) {
+        self.x = self.x.wrapping_add(1);
+    }
 }
 
 use std::cmp::Ord;
