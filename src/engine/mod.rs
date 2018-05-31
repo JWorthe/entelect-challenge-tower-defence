@@ -196,37 +196,38 @@ impl GameState {
 
     fn move_missiles<F>(missiles: &mut Vec<Missile>, mut wrapping_move_fn: F, opponent_buildings: &mut Vec<Building>, opponent: &mut Player, unoccupied_cells: &mut Vec<Point>, settings: &GameSettings)
     where F: FnMut(&mut Point) {
-        for missile in missiles.iter_mut() {
-            for _ in 0..missile.speed {
-                wrapping_move_fn(&mut missile.pos);
-                if missile.pos.x >= settings.size.x {
-                    let damage = cmp::min(missile.damage, opponent.health);
+        let mut missiles_len = missiles.len();
+        'missile_loop: for m in (0..missiles.len()).rev() {
+            //for _ in 0..missiles[m].speed { // only speed of 1 in round 1
+                wrapping_move_fn(&mut missiles[m].pos);
+                if missiles[m].pos.x >= settings.size.x {
+                    let damage = cmp::min(missiles[m].damage, opponent.health);
                     opponent.health -= damage;
-                    missile.speed = 0;
+                    missiles_len -= 1;
+                    missiles.swap(m, missiles_len);
+                    continue 'missile_loop;
                 }
                 else {
                     for b in 0..opponent_buildings.len() {
                         // TODO latest game engine may be checking building health here
-                        if opponent_buildings[b].pos == missile.pos {
-                            let damage = cmp::min(missile.damage, opponent_buildings[b].health);
+                        if opponent_buildings[b].pos == missiles[m].pos {
+                            let damage = cmp::min(missiles[m].damage, opponent_buildings[b].health);
                             opponent_buildings[b].health -= damage;
-                            missile.speed = 0;
+                            missiles_len -= 1;
+                            missiles.swap(m, missiles_len);
+
                             if opponent_buildings[b].health == 0 {
                                 unoccupied_cells.push(opponent_buildings[b].pos);
                                 opponent.energy_generated -= opponent_buildings[b].energy_generated_per_turn;
                                 opponent_buildings.swap_remove(b);
-                                break;
                             }
+                            continue 'missile_loop;
                         }
                     }
                 }
-                
-                if missile.speed == 0 {
-                    break;
-                }
-            }
+            //}
         }
-        swap_retain(missiles, |m| m.speed > 0);
+        missiles.truncate(missiles_len);
     }
 
     fn add_energy(player: &mut Player) {
@@ -361,16 +362,3 @@ impl Building {
     }
 }
 
-
-fn swap_retain<T, F>(v: &mut Vec<T>, mut pred: F)
-    where F: FnMut(&T) -> bool
-{
-    let mut new_len = v.len();
-    for i in (0..v.len()).rev() {
-        if !pred(&v[i]) {
-            new_len -= 1;
-            v.swap(i, new_len);
-        }
-    }
-    v.truncate(new_len);
-}
