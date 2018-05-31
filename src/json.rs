@@ -136,15 +136,13 @@ impl State {
 
     fn player(&self) -> &Player {
         self.players.iter()
-            .filter(|p| p.player_type == 'A')
-            .next()
+            .find(|p| p.player_type == 'A')
             .expect("Player character did not appear in state.json")
     }
 
     fn opponent(&self) -> &Player {
         self.players.iter()
-            .filter(|p| p.player_type == 'B')
-            .next()
+            .find(|p| p.player_type == 'B')
             .expect("Opponent character did not appear in state.json")
     }
 

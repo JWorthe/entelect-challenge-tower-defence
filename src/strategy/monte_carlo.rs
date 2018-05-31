@@ -46,7 +46,7 @@ pub fn choose_move(settings: &GameSettings, state: &GameState, start_time: &Prec
     }
     
     match command {
-        Some(ref command) => command.command,
+        Some(command) => command.command,
         _ => Command::Nothing
     }
 }
@@ -112,13 +112,13 @@ struct CommandScore {
 impl CommandScore {
     fn new(command: Command) -> CommandScore {
         CommandScore {
-            command: command,
+            command,
             victories: 0,
             defeats: 0,
             draws: 0,
             stalemates: 0,
             attempts: 0,
-            next_seed: [0x7b6ae1f4, 0x413ce90f, 0x67816799, 0x770a6bda]
+            next_seed: [0x7b6a_e1f4, 0x413c_e90f, 0x6781_6799, 0x770a_6bda]
         }
     }
 

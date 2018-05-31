@@ -84,16 +84,10 @@ impl GameState {
         );
         GameState {
             status: GameStatus::Continue,
-            player: player,
-            opponent: opponent,
-            player_unconstructed_buildings: player_unconstructed_buildings,
-            player_buildings: player_buildings,
-            unoccupied_player_cells: unoccupied_player_cells,
-            opponent_unconstructed_buildings: opponent_unconstructed_buildings,
-            opponent_buildings: opponent_buildings,
-            unoccupied_opponent_cells: unoccupied_opponent_cells,
-            player_missiles: player_missiles,
-            opponent_missiles: opponent_missiles
+            player, opponent,
+            player_unconstructed_buildings, player_buildings, unoccupied_player_cells,
+            opponent_unconstructed_buildings, opponent_buildings, unoccupied_opponent_cells,
+            player_missiles, opponent_missiles
         }
     }
 
@@ -210,6 +204,7 @@ impl GameState {
                     },
                     Some(point) => {
                         missile.pos = point;
+                        // TODO latest game engine may be checking building health here
                         for hit in opponent_buildings.iter_mut().filter(|b| b.pos == point) {
                             let damage = cmp::min(missile.damage, hit.health);
                             hit.health -= damage;
@@ -292,8 +287,8 @@ impl GameStatus {
 impl Player {
     pub fn new(energy: u16, health: u8, settings: &GameSettings, buildings: &[Building]) -> Player {
         Player {
-            energy: energy,
-            health: health,
+            energy,
+            health,
             energy_generated: settings.energy_income + buildings.iter().map(|b| b.energy_generated_per_turn).sum::<u16>()
         }
     }
@@ -319,7 +314,7 @@ impl Player {
 impl UnconstructedBuilding {
     pub fn new(pos: Point, blueprint: &BuildingSettings) -> UnconstructedBuilding {
         UnconstructedBuilding {
-            pos: pos,
+            pos,
             health: blueprint.health,
             construction_time_left: blueprint.construction_time,
             weapon_damage: blueprint.weapon_damage,
@@ -349,7 +344,7 @@ impl UnconstructedBuilding {
 impl Building {
     pub fn new(pos: Point, blueprint: &BuildingSettings) -> Building {
         Building {
-            pos: pos,
+            pos,
             health: blueprint.health,
             weapon_damage: blueprint.weapon_damage,
             weapon_speed: blueprint.weapon_speed,

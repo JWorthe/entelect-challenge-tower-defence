@@ -10,7 +10,7 @@ impl Point {
     }
     pub fn move_left(&self) -> Option<Point> {
         self.x.checked_sub(1).map(|x| Point {
-            x: x,
+            x,
             ..*self
         })
     }

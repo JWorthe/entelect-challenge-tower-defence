@@ -9,9 +9,9 @@ pub enum Command {
 
 impl fmt::Display for Command {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            &Command::Nothing => write!(f, ""),
-            &Command::Build(p, b) => write!(f, "{},{},{}", p.x, p.y, b as u8),
+        match *self {
+            Command::Nothing => write!(f, ""),
+            Command::Build(p, b) => write!(f, "{},{},{}", p.x, p.y, b as u8),
         }
     }
 }
