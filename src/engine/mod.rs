@@ -205,7 +205,7 @@ impl GameState {
                     Some(point) => {
                         missile.pos = point;
                         // TODO latest game engine may be checking building health here
-                        for hit in opponent_buildings.iter_mut().filter(|b| b.pos == point) {
+                        if let Some(mut hit) = opponent_buildings.iter_mut().find(|b| b.pos == point) {
                             let damage = cmp::min(missile.damage, hit.health);
                             hit.health -= damage;
                             missile.speed = 0;
@@ -213,12 +213,9 @@ impl GameState {
                     }
                 }
 
-                /*
-                check is necessary if speed could be > 1, which isn't the case yet
                 if missile.speed == 0 {
                     break;
                 }
-                 */
             }
         }
         missiles.retain(|m| m.speed > 0);
