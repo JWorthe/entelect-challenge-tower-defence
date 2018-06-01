@@ -198,7 +198,7 @@ impl GameState {
     where F: FnMut(&mut Point) {
         let mut missiles_len = missiles.len();
         'missile_loop: for m in (0..missiles.len()).rev() {
-            //for _ in 0..missiles[m].speed { // only speed of 1 in round 1
+            for _ in 0..missiles[m].speed {
                 wrapping_move_fn(&mut missiles[m].pos);
                 if missiles[m].pos.x >= settings.size.x {
                     let damage = cmp::min(missiles[m].damage, opponent.health);
@@ -225,7 +225,7 @@ impl GameState {
                         }
                     }
                 }
-            //}
+            }
         }
         missiles.truncate(missiles_len);
     }

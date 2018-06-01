@@ -28,7 +28,8 @@ struct State {
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct GameDetails {
-    //round: u32,
+    //round: u16,
+    //max_rounds: u16,
     map_width: u8,
     map_height: u8,
     round_income_energy: u16,
