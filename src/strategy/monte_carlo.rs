@@ -146,8 +146,8 @@ impl CommandScore {
         self.next_seed = next_seed;
     }
 
-    fn win_ratio(&self) -> u32 {
-        self.victories * 1000 / self.attempts
+    fn win_ratio(&self) -> i32 {
+        (self.victories as i32 - self.defeats as i32) * 10000 / (self.attempts as i32)
     }
     
     fn init_command_scores(settings: &GameSettings, state: &GameState) -> Vec<CommandScore> {

@@ -29,4 +29,11 @@ impl BuildingType {
         use self::BuildingType::*;
         [Defence, Attack, Energy]
     }
+
+    fn count() -> u8 { BuildingType::Energy as u8 + 1 }
+    pub fn from_u8(id: u8) -> Option<BuildingType> {
+        use std::mem;
+        if id < Self::count() { Some(unsafe { mem::transmute(id) }) } else { None }
+    }
+
 }
