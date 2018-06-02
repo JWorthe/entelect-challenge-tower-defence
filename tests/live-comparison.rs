@@ -10,10 +10,18 @@ use std::io::prelude::*;
 
 #[test]
 fn it_successfully_simulates_replay() {
-    let replay_folder = "tests/after_112";
+    test_from_replay("tests/after_112", 54);
+}
+
+#[test]
+fn it_successfully_simulates_replay_two() {
+    test_from_replay("tests/after_112_2", 76);
+}
+
+fn test_from_replay(replay_folder: &str, length: usize) {
     let (settings, mut state) = json::read_state_from_file(&format!("{}/Round 000/state.json", replay_folder)).unwrap();
     
-    for i in 0..54 {
+    for i in 0..length {
         let player = read_player_command(&format!("{}/Round {:03}/PlayerCommand.txt", replay_folder, i));
         let opponent = read_opponent_command(&format!("{}/Round {:03}/OpponentCommand.txt", replay_folder, i), &settings);
         let (_, mut expected_state) = json::read_state_from_file(&format!("{}/Round {:03}/state.json", replay_folder, i+1)).unwrap();
