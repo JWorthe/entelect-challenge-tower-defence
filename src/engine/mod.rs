@@ -154,14 +154,8 @@ impl GameState {
                 debug_assert!(player.energy >= blueprint.price);
 
                 player.energy -= blueprint.price;
-                if blueprint.construction_time > 0 {
-                    unconstructed_buildings.push(UnconstructedBuilding::new(p, blueprint));
-                } else {
-                    let building = Building::new(p, blueprint);
-                    player.energy_generated += building.energy_generated_per_turn;
-                    buildings.push(building);
-                }
-
+                unconstructed_buildings.push(UnconstructedBuilding::new(p, blueprint));
+                
                 let to_remove_index = unoccupied_cells.iter().position(|&pos| pos == p).unwrap();
                 unoccupied_cells.swap_remove(to_remove_index);
             },
@@ -169,14 +163,18 @@ impl GameState {
     }
 
     fn update_construction(unconstructed_buildings: &mut Vec<UnconstructedBuilding>, buildings: &mut Vec<Building>, player: &mut Player) {
-        for building in unconstructed_buildings.iter_mut() {
-            building.construction_time_left -= 1;
-            if building.is_constructed() {
-                player.energy_generated += building.energy_generated_per_turn;
-                buildings.push(building.to_building());
+        let mut buildings_len = unconstructed_buildings.len();
+        for i in (0..buildings_len).rev() {
+            if unconstructed_buildings[i].is_constructed() {
+                player.energy_generated += unconstructed_buildings[i].energy_generated_per_turn;
+                buildings.push(unconstructed_buildings[i].to_building());
+                buildings_len -= 1;
+                unconstructed_buildings.swap(i, buildings_len);
+            } else {
+                unconstructed_buildings[i].construction_time_left -= 1
             }
         }
-        unconstructed_buildings.retain(|b| !b.is_constructed());
+        unconstructed_buildings.truncate(buildings_len);
     }
 
     fn add_missiles(buildings: &mut Vec<Building>, missiles: &mut Vec<Missile>) {
@@ -198,33 +196,43 @@ impl GameState {
     where F: FnMut(&mut Point) {
         let mut missiles_len = missiles.len();
         'missile_loop: for m in (0..missiles.len()).rev() {
-            for _ in 0..missiles[m].speed {
+            let mut missile_hit = false;
+            'speed_loop: for _ in 0..missiles[m].speed {
                 wrapping_move_fn(&mut missiles[m].pos);
                 if missiles[m].pos.x >= settings.size.x {
                     let damage = cmp::min(missiles[m].damage, opponent.health);
                     opponent.health -= damage;
-                    missiles_len -= 1;
-                    missiles.swap(m, missiles_len);
-                    continue 'missile_loop;
+
+                    missile_hit = true;
+                    //missiles_len -= 1;
+                    //missiles.swap(m, missiles_len);
+                                        
+                    continue 'speed_loop;
                 }
                 else {
                     for b in 0..opponent_buildings.len() {
-                        // TODO latest game engine may be checking building health here
                         if opponent_buildings[b].pos == missiles[m].pos {
                             let damage = cmp::min(missiles[m].damage, opponent_buildings[b].health);
                             opponent_buildings[b].health -= damage;
-                            missiles_len -= 1;
-                            missiles.swap(m, missiles_len);
+
+                            missile_hit = true;
+                            //missiles_len -= 1;
+                            //missiles.swap(m, missiles_len);
 
                             if opponent_buildings[b].health == 0 {
                                 unoccupied_cells.push(opponent_buildings[b].pos);
                                 opponent.energy_generated -= opponent_buildings[b].energy_generated_per_turn;
                                 opponent_buildings.swap_remove(b);
                             }
-                            continue 'missile_loop;
+                            //after game engine bug fix, this should go back to missile_loop
+                            continue 'speed_loop;
                         }
                     }
                 }
+            }
+            if missile_hit {
+                missiles_len -= 1;
+                missiles.swap(m, missiles_len);
             }
         }
         missiles.truncate(missiles_len);
