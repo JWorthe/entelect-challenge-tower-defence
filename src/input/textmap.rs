@@ -12,6 +12,8 @@ pub fn read_state_from_file(filename: &str) -> Result<(GameSettings, GameState),
     let mut content = String::new();
     file.read_to_string(&mut content)?;
 
+    //TODO actually read the right file and parse it?
+
     let engine_settings = GameSettings {
         size: Point::new(8,4),
         energy_income: 5,
@@ -46,12 +48,12 @@ pub fn read_state_from_file(filename: &str) -> Result<(GameSettings, GameState),
     let engine_state = GameState::new(
         Player {
             energy: 20,
-            health: 5,
+            health: 100,
             energy_generated: 5
         },
         Player {
             energy: 20,
-            health: 5,
+            health: 100,
             energy_generated: 5
         },
         Vec::new(),
