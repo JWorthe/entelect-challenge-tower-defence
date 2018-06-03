@@ -1,6 +1,6 @@
 extern crate zombot;
 
-use zombot::json;
+use zombot::input::json;
 use zombot::engine::command::{Command, BuildingType};
 use zombot::engine::geometry::Point;
 use zombot::engine::settings::GameSettings;

@@ -9,6 +9,6 @@ extern crate time;
 
 extern crate rayon;
 
-pub mod json;
+pub mod input;
 pub mod engine;
 pub mod strategy;
