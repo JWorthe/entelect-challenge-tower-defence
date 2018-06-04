@@ -7,7 +7,6 @@ use self::geometry::Point;
 use self::settings::{GameSettings, BuildingSettings};
 
 use std::ops::FnMut;
-use std::cmp;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct GameState {
@@ -199,8 +198,7 @@ impl GameState {
             'speed_loop: for _ in 0..missiles[m].speed {
                 wrapping_move_fn(&mut missiles[m].pos);
                 if missiles[m].pos.x >= settings.size.x {
-                    let damage = cmp::min(missiles[m].damage, opponent.health);
-                    opponent.health -= damage;
+                    opponent.health = opponent.health.saturating_sub(missiles[m].damage);
 
                     missiles_len -= 1;
                     missiles.swap(m, missiles_len);
@@ -210,8 +208,7 @@ impl GameState {
                 else {
                     for b in 0..opponent_buildings.len() {
                         if opponent_buildings[b].pos == missiles[m].pos {
-                            let damage = cmp::min(missiles[m].damage, opponent_buildings[b].health);
-                            opponent_buildings[b].health -= damage;
+                            opponent_buildings[b].health = opponent_buildings[b].health.saturating_sub(missiles[m].damage);
 
                             missiles_len -= 1;
                             missiles.swap(m, missiles_len);
