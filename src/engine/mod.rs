@@ -196,18 +196,16 @@ impl GameState {
     where F: FnMut(&mut Point) {
         let mut missiles_len = missiles.len();
         'missile_loop: for m in (0..missiles.len()).rev() {
-            let mut missile_hit = false;
             'speed_loop: for _ in 0..missiles[m].speed {
                 wrapping_move_fn(&mut missiles[m].pos);
                 if missiles[m].pos.x >= settings.size.x {
                     let damage = cmp::min(missiles[m].damage, opponent.health);
                     opponent.health -= damage;
 
-                    missile_hit = true;
-                    //missiles_len -= 1;
-                    //missiles.swap(m, missiles_len);
+                    missiles_len -= 1;
+                    missiles.swap(m, missiles_len);
                                         
-                    continue 'speed_loop;
+                    continue 'missile_loop;
                 }
                 else {
                     for b in 0..opponent_buildings.len() {
@@ -215,9 +213,8 @@ impl GameState {
                             let damage = cmp::min(missiles[m].damage, opponent_buildings[b].health);
                             opponent_buildings[b].health -= damage;
 
-                            missile_hit = true;
-                            //missiles_len -= 1;
-                            //missiles.swap(m, missiles_len);
+                            missiles_len -= 1;
+                            missiles.swap(m, missiles_len);
 
                             if opponent_buildings[b].health == 0 {
                                 unoccupied_cells.push(opponent_buildings[b].pos);
@@ -225,14 +222,10 @@ impl GameState {
                                 opponent_buildings.swap_remove(b);
                             }
                             //after game engine bug fix, this should go back to missile_loop
-                            continue 'speed_loop;
+                            continue 'missile_loop;
                         }
                     }
                 }
-            }
-            if missile_hit {
-                missiles_len -= 1;
-                missiles.swap(m, missiles_len);
             }
         }
         missiles.truncate(missiles_len);

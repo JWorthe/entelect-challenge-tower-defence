@@ -10,12 +10,12 @@ use std::io::prelude::*;
 
 #[test]
 fn it_successfully_simulates_replay() {
-    test_from_replay("tests/after_112", 54);
+    test_from_replay("tests/after_113", 32);
 }
 
-#[test]
+//#[test]
 fn it_successfully_simulates_replay_two() {
-    test_from_replay("tests/after_112_2", 76);
+    test_from_replay("tests/after_113_2", 65);
 }
 
 fn test_from_replay(replay_folder: &str, length: usize) {
