@@ -8,6 +8,9 @@ use self::settings::{GameSettings, BuildingSettings};
 
 use std::ops::FnMut;
 
+#[cfg(feature = "energy-cutoff")] pub const ENERGY_PRODUCTION_CUTOFF: f32 = 2.;
+#[cfg(feature = "energy-cutoff")] pub const ENERGY_STORAGE_CUTOFF: u16 = 10;
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct GameState {
     pub status: GameStatus,
@@ -259,24 +262,6 @@ impl GameState {
         }
         result
     }
-
-    pub fn player_affordable_buildings(&self, settings: &GameSettings) -> Vec<BuildingType> {
-        GameState::affordable_buildings(self.player.energy, settings)
-    }
-
-    pub fn opponent_affordable_buildings(&self, settings: &GameSettings) -> Vec<BuildingType> {
-        GameState::affordable_buildings(self.opponent.energy, settings)
-    }
-
-    fn affordable_buildings(energy: u16, settings: &GameSettings) -> Vec<BuildingType> {
-        let mut result = Vec::with_capacity(3);
-        for b in BuildingType::all().iter() {
-            if settings.building_settings(*b).price <= energy {
-                result.push(*b);
-            }
-        }
-        result
-    }
 }
 
 impl GameStatus {
@@ -293,21 +278,33 @@ impl Player {
             energy_generated: settings.energy_income + buildings.iter().map(|b| b.energy_generated_per_turn).sum::<u16>()
         }
     }
-    
-    pub fn can_afford_all_buildings(&self, settings: &GameSettings) -> bool {
-        self.can_afford_attack_buildings(settings) &&
-            self.can_afford_defence_buildings(settings) &&
-            self.can_afford_energy_buildings(settings)
+
+    #[cfg(not(feature = "energy-cutoff"))]
+    pub fn sensible_buildings(&self, settings: &GameSettings) -> Vec<BuildingType> {
+        let mut result = Vec::with_capacity(3);
+        for b in BuildingType::all().iter() {
+            if settings.building_settings(*b).price <= self.energy {
+                result.push(*b);
+            }
+        }
+        result
     }
 
-    pub fn can_afford_attack_buildings(&self, settings: &GameSettings) -> bool {
-        self.energy >= settings.attack.price
-    }
-    pub fn can_afford_defence_buildings(&self, settings: &GameSettings) -> bool {
-        self.energy >= settings.defence.price
-    }
-    pub fn can_afford_energy_buildings(&self, settings: &GameSettings) -> bool {
-        self.energy >= settings.energy.price
+    #[cfg(feature = "energy-cutoff")]
+    pub fn sensible_buildings(&self, settings: &GameSettings) -> Vec<BuildingType> {
+        let mut result = Vec::with_capacity(3);
+        let needs_energy = self.energy_generated as f32 >= ENERGY_PRODUCTION_CUTOFF * settings.max_building_price as f32 &&
+            self.energy >= ENERGY_STORAGE_CUTOFF * settings.max_building_price;
+            
+        for b in BuildingType::all().iter() {
+            let building_setting = settings.building_settings(*b);
+            let affordable = building_setting.price <= self.energy;
+            let energy_producing = building_setting.energy_generated_per_turn > 0;
+            if affordable && (!energy_producing || needs_energy) {
+                result.push(*b);
+            }
+        }
+        result
     }
 
 }

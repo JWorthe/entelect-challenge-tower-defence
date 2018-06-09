@@ -75,12 +75,12 @@ fn simulate_to_endstate<R: Rng>(command_score: &mut CommandScore, settings: &Gam
 }
 
 fn random_player_move<R: Rng>(settings: &GameSettings, state: &GameState, rng: &mut R) -> Command {
-    let all_buildings = state.player_affordable_buildings(settings);
+    let all_buildings = state.player.sensible_buildings(settings);
     random_move(&state.unoccupied_player_cells, &all_buildings, rng)
 }
 
 fn random_opponent_move<R: Rng>(settings: &GameSettings, state: &GameState, rng: &mut R) -> Command {
-    let all_buildings = state.opponent_affordable_buildings(settings);
+    let all_buildings = state.opponent.sensible_buildings(settings);
     random_move(&state.unoccupied_opponent_cells, &all_buildings, rng)
 }
 
@@ -151,7 +151,7 @@ impl CommandScore {
     }
     
     fn init_command_scores(settings: &GameSettings, state: &GameState) -> Vec<CommandScore> {
-        let all_buildings = state.player_affordable_buildings(settings);
+        let all_buildings = state.player.sensible_buildings(settings);
 
         let mut commands = Vec::with_capacity(state.unoccupied_player_cells.len()*all_buildings.len()+1);
         commands.push(CommandScore::new(Command::Nothing));

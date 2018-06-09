@@ -15,3 +15,4 @@ rayon = "1.0.1"
 [features]
 benchmarking = []
 single-threaded = []
+energy-cutoff = []
