@@ -8,8 +8,8 @@ use self::settings::{GameSettings, BuildingSettings};
 
 use std::ops::FnMut;
 
-#[cfg(feature = "energy-cutoff")] pub const ENERGY_PRODUCTION_CUTOFF: f32 = 2.;
-#[cfg(feature = "energy-cutoff")] pub const ENERGY_STORAGE_CUTOFF: u16 = 10;
+#[cfg(feature = "energy-cutoff")] pub const ENERGY_PRODUCTION_CUTOFF: f32 = 1.2;
+#[cfg(feature = "energy-cutoff")] pub const ENERGY_STORAGE_CUTOFF: f32 = 1.5;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct GameState {
@@ -293,8 +293,8 @@ impl Player {
     #[cfg(feature = "energy-cutoff")]
     pub fn sensible_buildings(&self, settings: &GameSettings) -> Vec<BuildingType> {
         let mut result = Vec::with_capacity(3);
-        let needs_energy = self.energy_generated as f32 >= ENERGY_PRODUCTION_CUTOFF * settings.max_building_price as f32 &&
-            self.energy >= ENERGY_STORAGE_CUTOFF * settings.max_building_price;
+        let needs_energy = self.energy_generated as f32 <= ENERGY_PRODUCTION_CUTOFF * settings.max_building_price as f32 &&
+            self.energy as f32 <= ENERGY_STORAGE_CUTOFF * settings.max_building_price as f32;
             
         for b in BuildingType::all().iter() {
             let building_setting = settings.building_settings(*b);

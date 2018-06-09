@@ -17,3 +17,6 @@ benchmarking = []
 single-threaded = []
 energy-cutoff = []
 reduced-time = []
+extended-time = []
+
+default = ["energy-cutoff", "benchmarking"]

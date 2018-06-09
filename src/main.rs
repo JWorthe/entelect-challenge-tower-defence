@@ -16,8 +16,15 @@ use std::io::prelude::*;
 use std::process;
 
 fn choose_move(settings: &engine::settings::GameSettings, state: &engine::GameState, start_time: &PreciseTime) -> Command {
-    #[cfg(not(feature = "reduced-time"))] let max_time = Duration::milliseconds(1950);
-    #[cfg(feature = "reduced-time")] let max_time = Duration::milliseconds(950);
+    #[cfg(not(feature = "reduced-time"))]
+    #[cfg(not(feature = "extended-time"))]
+    let max_time = Duration::milliseconds(1950);
+    
+    #[cfg(feature = "reduced-time")]
+    let max_time = Duration::milliseconds(950);
+
+    #[cfg(feature = "extended-time")]
+    let max_time = Duration::milliseconds(19950);
     
     strategy::monte_carlo::choose_move(settings, state, start_time, max_time)
 }
