@@ -110,13 +110,13 @@ struct MissileState {
 
 impl State {
     fn to_engine_settings(&self) -> engine::settings::GameSettings {
-        engine::settings::GameSettings {
-            size: engine::geometry::Point::new(self.game_details.map_width, self.game_details.map_height),
-            energy_income: self.game_details.round_income_energy,
-            energy: self.game_details.buildings_stats.energy.to_engine(),
-            defence: self.game_details.buildings_stats.defense.to_engine(),
-            attack: self.game_details.buildings_stats.attack.to_engine(),
-        }
+        engine::settings::GameSettings::new(
+            engine::geometry::Point::new(self.game_details.map_width, self.game_details.map_height),
+            self.game_details.round_income_energy,
+            self.game_details.buildings_stats.energy.to_engine(),
+            self.game_details.buildings_stats.defense.to_engine(),
+            self.game_details.buildings_stats.attack.to_engine(),
+        )
     }
     
     fn to_engine(&self, settings: &engine::settings::GameSettings) -> engine::GameState {

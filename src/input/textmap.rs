@@ -14,10 +14,10 @@ pub fn read_state_from_file(filename: &str) -> Result<(GameSettings, GameState),
 
     //TODO actually read the right file and parse it?
 
-    let engine_settings = GameSettings {
-        size: Point::new(8,4),
-        energy_income: 5,
-        energy: BuildingSettings {
+    let engine_settings = GameSettings::new(
+        Point::new(8,4),
+        5,
+        BuildingSettings {
             price: 20,
             health: 5,
             construction_time: 2-2,
@@ -26,7 +26,7 @@ pub fn read_state_from_file(filename: &str) -> Result<(GameSettings, GameState),
             weapon_cooldown_period: 0,
             energy_generated_per_turn: 3
         },
-        defence: BuildingSettings {
+        BuildingSettings {
             price: 30,
             health: 20,
             construction_time: 4-2,
@@ -35,7 +35,7 @@ pub fn read_state_from_file(filename: &str) -> Result<(GameSettings, GameState),
             weapon_cooldown_period: 0,
             energy_generated_per_turn: 0
         },
-        attack: BuildingSettings {
+        BuildingSettings {
             price: 30,
             health: 5,
             construction_time: 2-2,
@@ -44,7 +44,7 @@ pub fn read_state_from_file(filename: &str) -> Result<(GameSettings, GameState),
             weapon_cooldown_period: 3,
             energy_generated_per_turn: 0
         }
-    };
+    );
     let engine_state = GameState::new(
         Player {
             energy: 20,

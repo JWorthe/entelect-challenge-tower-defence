@@ -11,8 +11,6 @@ rand = "0.4.2"
 time = "0.1.4"
 rayon = "1.0.1"
 
-[profile.release]
-debug = true
 
 [features]
 benchmarking = []
