@@ -40,7 +40,6 @@ fn write_command(filename: &str, command: Command) -> Result<(), Box<Error> > {
 fn main() {
     let start_time = PreciseTime::now();
     
-    println!("Reading in state.json file");
     let (settings, state) = match input::json::read_state_from_file(STATE_PATH) {
         Ok(ok) => ok,
         Err(error) => {

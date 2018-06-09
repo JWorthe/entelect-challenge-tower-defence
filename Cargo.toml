@@ -19,4 +19,4 @@ energy-cutoff = []
 reduced-time = []
 extended-time = []
 
-default = ["energy-cutoff", "benchmarking"]
+default = ["energy-cutoff"]
