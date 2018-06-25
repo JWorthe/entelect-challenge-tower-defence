@@ -122,6 +122,8 @@ impl GameState {
         GameState::update_construction(&mut self.player_unconstructed_buildings, &mut self.player_buildings, &mut self.player);
         GameState::update_construction(&mut self.opponent_unconstructed_buildings, &mut self.opponent_buildings, &mut self.opponent);
 
+        GameState::fire_teslas(&mut self.player_buildings, &mut self.opponent_buildings);
+
         GameState::add_missiles(&mut self.player_buildings, &mut self.player_missiles);
         GameState::add_missiles(&mut self.opponent_buildings, &mut self.opponent_missiles);
 
@@ -161,6 +163,22 @@ impl GameState {
                 let to_remove_index = unoccupied_cells.iter().position(|&pos| pos == p).unwrap();
                 unoccupied_cells.swap_remove(to_remove_index);
             },
+            Command::Deconstruct(p) => {
+                let to_remove_index = buildings.iter().position(|&pos| pos == p);
+                if let Some(i) = to_remove_index {
+                    buildings.swap_remove(i);
+                }
+                let unconstructed_to_remove_index = unconstructed_buildings.iter().position(|&pos| pos == p);
+                if let Some(i) = unconstructed_to_remove_index {
+                    unconstructed_buildings.swap_remove(i);
+                }
+                
+                debug_assert!(to_remove_index.is_some() || unconstructed_to_remove_index.is_some());
+                    
+                player.energy += 5;
+                
+                unoccupied_cells.push(p);
+            },
         }
     }
 
@@ -179,6 +197,15 @@ impl GameState {
         unconstructed_buildings.truncate(buildings_len);
     }
 
+    fn fire_teslas(_player_buildings: &mut Vec<Building>, _opponent_buildings: &mut Vec<Building>) {
+        // TODO all towers try to fire. If there isn't enough energy
+        // to fire multiple, the oldest fires. This seems like an edge
+        // case because you're only allowed two towers in total, and
+        // they're probably only late game towers. The odds of firing
+        // twice at once is slim. Opposing towers can't be stopped
+        // from firing by firing themselves. So fire all, then remove.
+    }
+        
     fn add_missiles(buildings: &mut Vec<Building>, missiles: &mut Vec<Missile>) {
         for building in buildings.iter_mut().filter(|b| b.is_shooty()) {
             if building.weapon_cooldown_time_left > 0 {

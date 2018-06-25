@@ -41,7 +41,8 @@ struct GameDetails {
 struct BuildingStats {
     energy: BuildingBlueprint,
     defense: BuildingBlueprint,
-    attack: BuildingBlueprint
+    attack: BuildingBlueprint,
+    tesla: BuildingBlueprint,
 }
 
 #[derive(Deserialize)]
@@ -116,6 +117,7 @@ impl State {
             self.game_details.buildings_stats.energy.to_engine(),
             self.game_details.buildings_stats.defense.to_engine(),
             self.game_details.buildings_stats.attack.to_engine(),
+            self.game_details.buildings_stats.tesla.to_engine(),
         )
     }
     

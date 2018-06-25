@@ -52,7 +52,11 @@ fn read_opponent_command(filename: &str, settings: &GameSettings) -> Command {
         Command::Build(p, b) => Command::Build(Point::new(
             settings.size.x - p.x - 1,
             p.y
-        ), b)
+        ), b),
+        Command::Deconstruct(p) => Command::Deconstruct(Point::new(
+            settings.size.x - p.x - 1,
+            p.y
+        )),
     }
     
 }
