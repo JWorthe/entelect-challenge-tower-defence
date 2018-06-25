@@ -76,24 +76,34 @@ fn simulate_to_endstate<R: Rng>(command_score: &mut CommandScore, settings: &Gam
 
 fn random_player_move<R: Rng>(settings: &GameSettings, state: &GameState, rng: &mut R) -> Command {
     let all_buildings = state.player.sensible_buildings(settings);
-    random_move(&state.unoccupied_player_cells, &all_buildings, rng)
+    random_move(&settings, &state.unoccupied_player_cells, &all_buildings, rng)
 }
 
 fn random_opponent_move<R: Rng>(settings: &GameSettings, state: &GameState, rng: &mut R) -> Command {
     let all_buildings = state.opponent.sensible_buildings(settings);
-    random_move(&state.unoccupied_opponent_cells, &all_buildings, rng)
+    random_move(&settings, &state.unoccupied_opponent_cells, &all_buildings, rng)
 }
 
-fn random_move<R: Rng>(all_positions: &[Point], all_buildings: &[BuildingType], rng: &mut R) -> Command {
-    let number_of_commands = all_positions.len()*all_buildings.len()+1;
+fn random_move<R: Rng>(settings: &GameSettings, all_positions: &[Point], all_buildings: &[BuildingType], rng: &mut R) -> Command {
+    
+    let building_command_count = all_positions.len()*all_buildings.len();
+    let deconstruct_count = (settings.size.x as usize * settings.size.y as usize / 2) - all_positions.len();
+    let nothing_count = 1;
+
+    let number_of_commands = building_command_count + deconstruct_count + nothing_count;
+    
     let choice_index = rng.gen_range(0, number_of_commands);
 
     if choice_index == number_of_commands - 1 {
         Command::Nothing
-    } else {
+    } else if choice_index < building_command_count {
         Command::Build(
             all_positions[choice_index/all_buildings.len()],
             all_buildings[choice_index%all_buildings.len()]
+        )
+    } else {
+        Command::Deconstruct(
+            all_positions[choice_index-building_command_count]
         )
     }
 }
@@ -153,13 +163,24 @@ impl CommandScore {
     fn init_command_scores(settings: &GameSettings, state: &GameState) -> Vec<CommandScore> {
         let all_buildings = state.player.sensible_buildings(settings);
 
-        let mut commands = Vec::with_capacity(state.unoccupied_player_cells.len()*all_buildings.len()+1);
+        let building_command_count = state.unoccupied_player_cells.len()*all_buildings.len();
+        let deconstruct_count = (settings.size.x as usize *settings.size.y as usize / 2) - state.unoccupied_player_cells.len();
+        let nothing_count = 1;
+        
+        let mut commands = Vec::with_capacity(building_command_count + deconstruct_count + nothing_count);
         commands.push(CommandScore::new(Command::Nothing));
 
         for &position in &state.unoccupied_player_cells {
             for &building in &all_buildings {
                 commands.push(CommandScore::new(Command::Build(position, building)));
             }
+        }
+
+        for building in &state.player_buildings {
+            commands.push(CommandScore::new(Command::Deconstruct(building.pos)));
+        }
+        for building in &state.player_unconstructed_buildings {
+            commands.push(CommandScore::new(Command::Deconstruct(building.pos)));
         }
 
         commands

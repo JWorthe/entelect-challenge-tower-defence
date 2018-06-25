@@ -198,34 +198,48 @@ impl GameState {
     }
 
     fn fire_teslas(player: &mut Player, player_buildings: &mut Vec<Building>, opponent: &mut Player, opponent_buildings: &mut Vec<Building>, settings: &GameSettings) {
-        for tesla in player_buildings.iter().filter(|b| b.weapon_damage == 20) {
-            if tesla.pos.x + 1 >= settings.size.x/2 {
-                opponent.health = opponent.health.saturating_sub(settings.tesla.weapon_damage);
-            }
-            'player_col_loop: for x in tesla.pos.x+1..tesla.pos.x+(settings.size.x/2)+2 {
-                for &y in [tesla.pos.y - 1, tesla.pos.y, tesla.pos.y + 1].iter() {
-                    let target_point = Point::new(x, y);
-                    for b in 0..opponent_buildings.len() {
-                        if opponent_buildings[b].pos == target_point && opponent_buildings[b].health > 0 {
-                            opponent_buildings[b].health = opponent_buildings[b].health.saturating_sub(settings.tesla.weapon_damage);
-                            continue 'player_col_loop;
+        for tesla in player_buildings.iter_mut().filter(|b| b.weapon_damage == 20) {
+            if tesla.weapon_cooldown_time_left > 0 {
+                tesla.weapon_cooldown_time_left -= 1;
+            } else if player.energy >= 100 {
+                player.energy -= 100;
+                tesla.weapon_cooldown_time_left = tesla.weapon_cooldown_period;
+
+                if tesla.pos.x + 1 >= settings.size.x/2 {
+                    opponent.health = opponent.health.saturating_sub(settings.tesla.weapon_damage);
+                }
+                'player_col_loop: for x in tesla.pos.x+1..tesla.pos.x+(settings.size.x/2)+2 {
+                    for &y in [tesla.pos.y - 1, tesla.pos.y, tesla.pos.y + 1].iter() {
+                        let target_point = Point::new(x, y);
+                        for b in 0..opponent_buildings.len() {
+                            if opponent_buildings[b].pos == target_point && opponent_buildings[b].health > 0 {
+                                opponent_buildings[b].health = opponent_buildings[b].health.saturating_sub(settings.tesla.weapon_damage);
+                                continue 'player_col_loop;
+                            }
                         }
                     }
                 }
             }
         }
 
-        for tesla in opponent_buildings.iter().filter(|b| b.weapon_damage == 20) {
-            if tesla.pos.x <= settings.size.x/2 {
-                player.health = player.health.saturating_sub(settings.tesla.weapon_damage);
-            }
-            'opponent_col_loop: for x in tesla.pos.x.saturating_sub((settings.size.x/2)+1)..tesla.pos.x {
-                for &y in [tesla.pos.y - 1, tesla.pos.y, tesla.pos.y + 1].iter() {
-                    let target_point = Point::new(x, y);
-                    for b in 0..player_buildings.len() {
-                        if player_buildings[b].pos == target_point && player_buildings[b].health > 0 {
-                            player_buildings[b].health = player_buildings[b].health.saturating_sub(settings.tesla.weapon_damage);
-                            continue 'opponent_col_loop;
+        for tesla in opponent_buildings.iter_mut().filter(|b| b.weapon_damage == 20) {
+            if tesla.weapon_cooldown_time_left > 0 {
+                tesla.weapon_cooldown_time_left -= 1;
+            } else if opponent.energy >= 100 {
+                opponent.energy -= 100;
+                tesla.weapon_cooldown_time_left = tesla.weapon_cooldown_period;
+                
+                if tesla.pos.x <= settings.size.x/2 {
+                    player.health = player.health.saturating_sub(settings.tesla.weapon_damage);
+                }
+                'opponent_col_loop: for x in tesla.pos.x.saturating_sub((settings.size.x/2)+1)..tesla.pos.x {
+                    for &y in [tesla.pos.y - 1, tesla.pos.y, tesla.pos.y + 1].iter() {
+                        let target_point = Point::new(x, y);
+                        for b in 0..player_buildings.len() {
+                            if player_buildings[b].pos == target_point && player_buildings[b].health > 0 {
+                                player_buildings[b].health = player_buildings[b].health.saturating_sub(settings.tesla.weapon_damage);
+                                continue 'opponent_col_loop;
+                            }
                         }
                     }
                 }
@@ -253,8 +267,8 @@ impl GameState {
     fn move_missiles<F>(missiles: &mut Vec<Missile>, mut wrapping_move_fn: F, opponent_buildings: &mut Vec<Building>, opponent: &mut Player, unoccupied_cells: &mut Vec<Point>, settings: &GameSettings)
     where F: FnMut(&mut Point) {
         let mut missiles_len = missiles.len();
-        'missile_loop: for m in (0..missiles.len()).rev() {
-            'speed_loop: for _ in 0..missiles[m].speed {
+        'speed_loop: for _ in 0..settings.attack.weapon_speed {
+            'missile_loop: for m in (0..missiles.len()).rev() {
                 wrapping_move_fn(&mut missiles[m].pos);
                 if missiles[m].pos.x >= settings.size.x {
                     opponent.health = opponent.health.saturating_sub(missiles[m].damage);
@@ -283,8 +297,8 @@ impl GameState {
                     }
                 }
             }
+            missiles.truncate(missiles_len);
         }
-        missiles.truncate(missiles_len);
     }
 
     fn add_energy(player: &mut Player) {
