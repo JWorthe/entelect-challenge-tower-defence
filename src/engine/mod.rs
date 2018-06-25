@@ -122,7 +122,7 @@ impl GameState {
         GameState::update_construction(&mut self.player_unconstructed_buildings, &mut self.player_buildings, &mut self.player);
         GameState::update_construction(&mut self.opponent_unconstructed_buildings, &mut self.opponent_buildings, &mut self.opponent);
 
-        GameState::fire_teslas(&mut self.player_buildings, &mut self.opponent_buildings);
+        GameState::fire_teslas(&mut self.player, &mut self.player_buildings, &mut self.opponent, &mut self.opponent_buildings, &settings);
 
         GameState::add_missiles(&mut self.player_buildings, &mut self.player_missiles);
         GameState::add_missiles(&mut self.opponent_buildings, &mut self.opponent_missiles);
@@ -164,11 +164,11 @@ impl GameState {
                 unoccupied_cells.swap_remove(to_remove_index);
             },
             Command::Deconstruct(p) => {
-                let to_remove_index = buildings.iter().position(|&pos| pos == p);
+                let to_remove_index = buildings.iter().position(|ref b| b.pos == p);
                 if let Some(i) = to_remove_index {
                     buildings.swap_remove(i);
                 }
-                let unconstructed_to_remove_index = unconstructed_buildings.iter().position(|&pos| pos == p);
+                let unconstructed_to_remove_index = unconstructed_buildings.iter().position(|ref b| b.pos == p);
                 if let Some(i) = unconstructed_to_remove_index {
                     unconstructed_buildings.swap_remove(i);
                 }
@@ -197,13 +197,42 @@ impl GameState {
         unconstructed_buildings.truncate(buildings_len);
     }
 
-    fn fire_teslas(_player_buildings: &mut Vec<Building>, _opponent_buildings: &mut Vec<Building>) {
-        // TODO all towers try to fire. If there isn't enough energy
-        // to fire multiple, the oldest fires. This seems like an edge
-        // case because you're only allowed two towers in total, and
-        // they're probably only late game towers. The odds of firing
-        // twice at once is slim. Opposing towers can't be stopped
-        // from firing by firing themselves. So fire all, then remove.
+    fn fire_teslas(player: &mut Player, player_buildings: &mut Vec<Building>, opponent: &mut Player, opponent_buildings: &mut Vec<Building>, settings: &GameSettings) {
+        for tesla in player_buildings.iter().filter(|b| b.weapon_damage == 20) {
+            if tesla.pos.x + 1 >= settings.size.x/2 {
+                opponent.health = opponent.health.saturating_sub(settings.tesla.weapon_damage);
+            }
+            'player_col_loop: for x in tesla.pos.x+1..tesla.pos.x+(settings.size.x/2)+2 {
+                for &y in [tesla.pos.y - 1, tesla.pos.y, tesla.pos.y + 1].iter() {
+                    let target_point = Point::new(x, y);
+                    for b in 0..opponent_buildings.len() {
+                        if opponent_buildings[b].pos == target_point && opponent_buildings[b].health > 0 {
+                            opponent_buildings[b].health = opponent_buildings[b].health.saturating_sub(settings.tesla.weapon_damage);
+                            continue 'player_col_loop;
+                        }
+                    }
+                }
+            }
+        }
+
+        for tesla in opponent_buildings.iter().filter(|b| b.weapon_damage == 20) {
+            if tesla.pos.x <= settings.size.x/2 {
+                player.health = player.health.saturating_sub(settings.tesla.weapon_damage);
+            }
+            'opponent_col_loop: for x in tesla.pos.x.saturating_sub((settings.size.x/2)+1)..tesla.pos.x {
+                for &y in [tesla.pos.y - 1, tesla.pos.y, tesla.pos.y + 1].iter() {
+                    let target_point = Point::new(x, y);
+                    for b in 0..player_buildings.len() {
+                        if player_buildings[b].pos == target_point && player_buildings[b].health > 0 {
+                            player_buildings[b].health = player_buildings[b].health.saturating_sub(settings.tesla.weapon_damage);
+                            continue 'opponent_col_loop;
+                        }
+                    }
+                }
+            }
+        }
+        player_buildings.retain(|b| b.health > 0);
+        opponent_buildings.retain(|b| b.health > 0);
     }
         
     fn add_missiles(buildings: &mut Vec<Building>, missiles: &mut Vec<Missile>) {
@@ -380,7 +409,7 @@ impl Building {
     }
     
     fn is_shooty(&self) -> bool {
-        self.weapon_damage > 0
+        self.weapon_damage > 0 && self.weapon_damage < 20
     }
 }
 
