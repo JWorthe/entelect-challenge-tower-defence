@@ -19,7 +19,7 @@ impl fmt::Display for Command {
 }
 
 #[repr(u8)]
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BuildingType {
     Defence = 0,
     Attack = 1,
@@ -35,7 +35,7 @@ impl BuildingType {
 
     pub fn from_u8(id: u8) -> Option<BuildingType> {
         use std::mem;
-        if id < 4 && id != 3 { Some(unsafe { mem::transmute(id) }) } else { None }
+        if id <= 4 && id != 3 { Some(unsafe { mem::transmute(id) }) } else { None }
     }
 
 }

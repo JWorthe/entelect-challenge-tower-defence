@@ -156,6 +156,9 @@ impl GameState {
             debug_assert!(!buildings.iter().any(|b| b.pos == p));
             debug_assert!(p.x < size.x && p.y < size.y);
             debug_assert!(player.energy >= blueprint.price);
+            debug_assert!(b != BuildingType::Tesla ||
+                          unconstructed_buildings.iter().filter(|b| b.weapon_damage == 20).count() +
+                          buildings.iter().filter(|b| b.weapon_damage == 20).count() < 2);
 
             player.energy -= blueprint.price;
             unconstructed_buildings.push(UnconstructedBuilding::new(p, blueprint));
@@ -346,6 +349,16 @@ impl GameState {
             .chain(self.opponent_buildings.iter().map(|b| b.pos))
             .collect()
     }
+
+    pub fn count_player_teslas(&self) -> usize {
+        self.player_unconstructed_buildings.iter().filter(|b| b.weapon_damage == 20).count() +
+            self.player_buildings.iter().filter(|b| b.weapon_damage == 20).count()
+    }
+
+    pub fn count_opponent_teslas(&self) -> usize {
+        self.opponent_unconstructed_buildings.iter().filter(|b| b.weapon_damage == 20).count() +
+            self.opponent_buildings.iter().filter(|b| b.weapon_damage == 20).count()
+    }
 }
 
 impl GameStatus {
@@ -364,10 +377,13 @@ impl Player {
     }
 
     #[cfg(not(feature = "energy-cutoff"))]
-    pub fn sensible_buildings(&self, settings: &GameSettings) -> Vec<BuildingType> {
+    pub fn sensible_buildings(&self, tesla_allowed: bool, settings: &GameSettings) -> Vec<BuildingType> {
         let mut result = Vec::with_capacity(3);
         for b in BuildingType::all().iter() {
-            if settings.building_settings(*b).price <= self.energy {
+            let building_setting = settings.building_settings(*b);
+            let affordable = building_setting.price <= self.energy;
+            let is_tesla = building_setting.weapon_damage == 20;
+            if affordable && (!is_tesla || tesla_allowed) {
                 result.push(*b);
             }
         }
@@ -375,7 +391,7 @@ impl Player {
     }
 
     #[cfg(feature = "energy-cutoff")]
-    pub fn sensible_buildings(&self, settings: &GameSettings) -> Vec<BuildingType> {
+    pub fn sensible_buildings(&self, tesla_allowed: bool, settings: &GameSettings) -> Vec<BuildingType> {
         let mut result = Vec::with_capacity(3);
         let needs_energy = self.energy_generated as f32 <= ENERGY_PRODUCTION_CUTOFF * settings.max_building_price as f32 &&
             self.energy as f32 <= ENERGY_STORAGE_CUTOFF * settings.max_building_price as f32;
@@ -384,7 +400,8 @@ impl Player {
             let building_setting = settings.building_settings(*b);
             let affordable = building_setting.price <= self.energy;
             let energy_producing = building_setting.energy_generated_per_turn > 0;
-            if affordable && (!energy_producing || needs_energy) {
+            let is_tesla = building_setting.weapon_damage == 20;
+            if affordable && (!energy_producing || needs_energy) && (!is_tesla || tesla_allowed) {
                 result.push(*b);
             }
         }

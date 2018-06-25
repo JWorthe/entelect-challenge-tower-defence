@@ -75,35 +75,30 @@ fn simulate_to_endstate<R: Rng>(command_score: &mut CommandScore, settings: &Gam
 }
 
 fn random_player_move<R: Rng>(settings: &GameSettings, state: &GameState, rng: &mut R) -> Command {
-    let all_buildings = state.player.sensible_buildings(settings);
-    random_move(&state.unoccupied_player_cells, &state.occupied_player_cells(), &all_buildings, rng)
+    let all_buildings = state.player.sensible_buildings(state.count_player_teslas() < 2, settings);
+    random_move(&state.unoccupied_player_cells, &all_buildings, rng)
 }
 
 fn random_opponent_move<R: Rng>(settings: &GameSettings, state: &GameState, rng: &mut R) -> Command {
-    let all_buildings = state.opponent.sensible_buildings(settings);
-    random_move(&state.unoccupied_opponent_cells, &state.occupied_opponent_cells(), &all_buildings, rng)
+    let all_buildings = state.opponent.sensible_buildings(state.count_opponent_teslas() < 2, settings);
+    random_move(&state.unoccupied_opponent_cells, &all_buildings, rng)
 }
 
-fn random_move<R: Rng>(free_positions: &[Point], occupied_positions: &[Point], all_buildings: &[BuildingType], rng: &mut R) -> Command {
+fn random_move<R: Rng>(free_positions: &[Point], all_buildings: &[BuildingType], rng: &mut R) -> Command {
     
     let building_command_count = free_positions.len()*all_buildings.len();
-    let deconstruct_count = occupied_positions.len();
     let nothing_count = 1;
 
-    let number_of_commands = building_command_count + deconstruct_count + nothing_count;
+    let number_of_commands = building_command_count + nothing_count;
     
     let choice_index = rng.gen_range(0, number_of_commands);
 
     if choice_index == number_of_commands - 1 {
         Command::Nothing
-    } else if choice_index < building_command_count {
+    } else {
         Command::Build(
             free_positions[choice_index/all_buildings.len()],
             all_buildings[choice_index%all_buildings.len()]
-        )
-    } else {
-        Command::Deconstruct(
-            occupied_positions[choice_index-building_command_count]
         )
     }
 }
@@ -161,7 +156,7 @@ impl CommandScore {
     }
     
     fn init_command_scores(settings: &GameSettings, state: &GameState) -> Vec<CommandScore> {
-        let all_buildings = state.player.sensible_buildings(settings);
+        let all_buildings = state.player.sensible_buildings(state.count_player_teslas() < 2, settings);
 
         let building_command_count = state.unoccupied_player_cells.len()*all_buildings.len();
         let deconstruct_count = (settings.size.x as usize *settings.size.y as usize / 2) - state.unoccupied_player_cells.len();
