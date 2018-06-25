@@ -13,7 +13,7 @@ impl fmt::Display for Command {
         match *self {
             Command::Nothing => write!(f, ""),
             Command::Build(p, b) => write!(f, "{},{},{}", p.x, p.y, b as u8),
-            Command::Deconstruct(p) => write!(f, "3,{},{}", p.x, p.y),
+            Command::Deconstruct(p) => write!(f, "{},{},3", p.x, p.y),
         }
     }
 }

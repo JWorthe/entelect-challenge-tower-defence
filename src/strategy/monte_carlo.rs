@@ -76,18 +76,18 @@ fn simulate_to_endstate<R: Rng>(command_score: &mut CommandScore, settings: &Gam
 
 fn random_player_move<R: Rng>(settings: &GameSettings, state: &GameState, rng: &mut R) -> Command {
     let all_buildings = state.player.sensible_buildings(settings);
-    random_move(&settings, &state.unoccupied_player_cells, &all_buildings, rng)
+    random_move(&state.unoccupied_player_cells, &state.occupied_player_cells(), &all_buildings, rng)
 }
 
 fn random_opponent_move<R: Rng>(settings: &GameSettings, state: &GameState, rng: &mut R) -> Command {
     let all_buildings = state.opponent.sensible_buildings(settings);
-    random_move(&settings, &state.unoccupied_opponent_cells, &all_buildings, rng)
+    random_move(&state.unoccupied_opponent_cells, &state.occupied_opponent_cells(), &all_buildings, rng)
 }
 
-fn random_move<R: Rng>(settings: &GameSettings, all_positions: &[Point], all_buildings: &[BuildingType], rng: &mut R) -> Command {
+fn random_move<R: Rng>(free_positions: &[Point], occupied_positions: &[Point], all_buildings: &[BuildingType], rng: &mut R) -> Command {
     
-    let building_command_count = all_positions.len()*all_buildings.len();
-    let deconstruct_count = (settings.size.x as usize * settings.size.y as usize / 2) - all_positions.len();
+    let building_command_count = free_positions.len()*all_buildings.len();
+    let deconstruct_count = occupied_positions.len();
     let nothing_count = 1;
 
     let number_of_commands = building_command_count + deconstruct_count + nothing_count;
@@ -98,12 +98,12 @@ fn random_move<R: Rng>(settings: &GameSettings, all_positions: &[Point], all_bui
         Command::Nothing
     } else if choice_index < building_command_count {
         Command::Build(
-            all_positions[choice_index/all_buildings.len()],
+            free_positions[choice_index/all_buildings.len()],
             all_buildings[choice_index%all_buildings.len()]
         )
     } else {
         Command::Deconstruct(
-            all_positions[choice_index-building_command_count]
+            occupied_positions[choice_index-building_command_count]
         )
     }
 }
@@ -176,11 +176,8 @@ impl CommandScore {
             }
         }
 
-        for building in &state.player_buildings {
-            commands.push(CommandScore::new(Command::Deconstruct(building.pos)));
-        }
-        for building in &state.player_unconstructed_buildings {
-            commands.push(CommandScore::new(Command::Deconstruct(building.pos)));
+        for &position in &state.occupied_player_cells() {
+            commands.push(CommandScore::new(Command::Deconstruct(position)));
         }
 
         commands

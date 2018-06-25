@@ -10,7 +10,7 @@ use std::io::prelude::*;
 
 #[test]
 fn it_successfully_simulates_replay() {
-    test_from_replay("tests/after_113", 32);
+    test_from_replay("tests/after_200", 62);
 }
 
 fn test_from_replay(replay_folder: &str, length: usize) {
@@ -37,12 +37,14 @@ fn read_player_command(filename: &str) -> Command {
     }
     else {
         let mut components = content.split(',');
-        Command::Build(
-            Point::new(components.next().unwrap().trim().parse().unwrap(),
-                       components.next().unwrap().trim().parse().unwrap()
-            ),
-            BuildingType::from_u8(components.next().unwrap().trim().parse().unwrap()).unwrap()
-        )
+        let point = Point::new(components.next().unwrap().trim().parse().unwrap(),
+                               components.next().unwrap().trim().parse().unwrap());
+        let action_type = components.next().unwrap().trim().parse().unwrap();
+        if action_type == 3 {
+            Command::Deconstruct(point)
+        } else {
+            Command::Build(point, BuildingType::from_u8(action_type).unwrap())
+        }
     }
 }
 

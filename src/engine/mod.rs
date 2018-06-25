@@ -119,6 +119,11 @@ impl GameState {
             return;
         }
 
+        GameState::perform_construct_command(&mut self.player_unconstructed_buildings, &mut self.player_buildings,  &mut self.player, &mut self.unoccupied_player_cells, settings, player_command, &settings.size);
+        GameState::perform_construct_command(&mut self.opponent_unconstructed_buildings, &mut self.opponent_buildings, &mut self.opponent, &mut self.unoccupied_opponent_cells, settings, opponent_command, &settings.size);
+        GameState::perform_deconstruct_command(&mut self.player_unconstructed_buildings, &mut self.player_buildings,  &mut self.player, &mut self.unoccupied_player_cells, player_command);
+        GameState::perform_deconstruct_command(&mut self.opponent_unconstructed_buildings, &mut self.opponent_buildings, &mut self.opponent, &mut self.unoccupied_opponent_cells, opponent_command);
+        
         GameState::update_construction(&mut self.player_unconstructed_buildings, &mut self.player_buildings, &mut self.player);
         GameState::update_construction(&mut self.opponent_unconstructed_buildings, &mut self.opponent_buildings, &mut self.opponent);
 
@@ -138,47 +143,44 @@ impl GameState {
 
         GameState::add_energy(&mut self.player);
         GameState::add_energy(&mut self.opponent);
-
-        GameState::perform_command(&mut self.player_unconstructed_buildings, &mut self.player_buildings,  &mut self.player, &mut self.unoccupied_player_cells, settings, player_command, &settings.size);
-        GameState::perform_command(&mut self.opponent_unconstructed_buildings, &mut self.opponent_buildings, &mut self.opponent, &mut self.unoccupied_opponent_cells, settings, opponent_command, &settings.size);
         
         GameState::update_status(self);
     }
 
-    fn perform_command(unconstructed_buildings: &mut Vec<UnconstructedBuilding>, buildings: &mut Vec<Building>, player: &mut Player, unoccupied_cells: &mut Vec<Point>, settings: &GameSettings, command: Command, size: &Point) {
-        match command {
-            Command::Nothing => { },
-            Command::Build(p, b) => {
-                let blueprint = settings.building_settings(b);
+    fn perform_construct_command(unconstructed_buildings: &mut Vec<UnconstructedBuilding>, buildings: &mut Vec<Building>, player: &mut Player, unoccupied_cells: &mut Vec<Point>, settings: &GameSettings, command: Command, size: &Point) {
+        if let Command::Build(p, b) = command {
+            let blueprint = settings.building_settings(b);
 
-                // This is used internally. I should not be making
-                // invalid moves!
-                debug_assert!(!buildings.iter().any(|b| b.pos == p));
-                debug_assert!(p.x < size.x && p.y < size.y);
-                debug_assert!(player.energy >= blueprint.price);
+            // This is used internally. I should not be making
+            // invalid moves!
+            debug_assert!(!buildings.iter().any(|b| b.pos == p));
+            debug_assert!(p.x < size.x && p.y < size.y);
+            debug_assert!(player.energy >= blueprint.price);
 
-                player.energy -= blueprint.price;
-                unconstructed_buildings.push(UnconstructedBuilding::new(p, blueprint));
-                
-                let to_remove_index = unoccupied_cells.iter().position(|&pos| pos == p).unwrap();
-                unoccupied_cells.swap_remove(to_remove_index);
-            },
-            Command::Deconstruct(p) => {
-                let to_remove_index = buildings.iter().position(|ref b| b.pos == p);
-                if let Some(i) = to_remove_index {
-                    buildings.swap_remove(i);
-                }
-                let unconstructed_to_remove_index = unconstructed_buildings.iter().position(|ref b| b.pos == p);
-                if let Some(i) = unconstructed_to_remove_index {
-                    unconstructed_buildings.swap_remove(i);
-                }
-                
-                debug_assert!(to_remove_index.is_some() || unconstructed_to_remove_index.is_some());
-                    
-                player.energy += 5;
-                
-                unoccupied_cells.push(p);
-            },
+            player.energy -= blueprint.price;
+            unconstructed_buildings.push(UnconstructedBuilding::new(p, blueprint));
+            
+            let to_remove_index = unoccupied_cells.iter().position(|&pos| pos == p).unwrap();
+            unoccupied_cells.swap_remove(to_remove_index);
+        }
+    }
+    fn perform_deconstruct_command(unconstructed_buildings: &mut Vec<UnconstructedBuilding>, buildings: &mut Vec<Building>, player: &mut Player, unoccupied_cells: &mut Vec<Point>, command: Command) {
+        if let Command::Deconstruct(p) = command {
+            let to_remove_index = buildings.iter().position(|ref b| b.pos == p);
+            let unconstructed_to_remove_index = unconstructed_buildings.iter().position(|ref b| b.pos == p);
+            debug_assert!(to_remove_index.is_some() || unconstructed_to_remove_index.is_some());
+            
+            if let Some(i) = to_remove_index {
+                player.energy_generated -= buildings[i].energy_generated_per_turn;
+                buildings.swap_remove(i);
+            }
+            if let Some(i) = unconstructed_to_remove_index {
+                unconstructed_buildings.swap_remove(i);
+            }
+            
+            player.energy += 5;
+            
+            unoccupied_cells.push(p);
         }
     }
 
@@ -209,7 +211,7 @@ impl GameState {
                     opponent.health = opponent.health.saturating_sub(settings.tesla.weapon_damage);
                 }
                 'player_col_loop: for x in tesla.pos.x+1..tesla.pos.x+(settings.size.x/2)+2 {
-                    for &y in [tesla.pos.y - 1, tesla.pos.y, tesla.pos.y + 1].iter() {
+                    for &y in [tesla.pos.y.saturating_sub(1), tesla.pos.y, tesla.pos.y.saturating_add(1)].iter() {
                         let target_point = Point::new(x, y);
                         for b in 0..opponent_buildings.len() {
                             if opponent_buildings[b].pos == target_point && opponent_buildings[b].health > 0 {
@@ -233,7 +235,7 @@ impl GameState {
                     player.health = player.health.saturating_sub(settings.tesla.weapon_damage);
                 }
                 'opponent_col_loop: for x in tesla.pos.x.saturating_sub((settings.size.x/2)+1)..tesla.pos.x {
-                    for &y in [tesla.pos.y - 1, tesla.pos.y, tesla.pos.y + 1].iter() {
+                    for &y in [tesla.pos.y.saturating_sub(1), tesla.pos.y, tesla.pos.y.saturating_add(1)].iter() {
                         let target_point = Point::new(x, y);
                         for b in 0..player_buildings.len() {
                             if player_buildings[b].pos == target_point && player_buildings[b].health > 0 {
@@ -332,6 +334,18 @@ impl GameState {
         }
         result
     }
+
+    
+    pub fn occupied_player_cells(&self) -> Vec<Point> {
+        self.player_unconstructed_buildings.iter().map(|b| b.pos)
+            .chain(self.player_buildings.iter().map(|b| b.pos))
+            .collect()
+    }
+    pub fn occupied_opponent_cells(&self) -> Vec<Point> {
+        self.opponent_unconstructed_buildings.iter().map(|b| b.pos)
+            .chain(self.opponent_buildings.iter().map(|b| b.pos))
+            .collect()
+    }
 }
 
 impl GameStatus {
@@ -376,7 +390,6 @@ impl Player {
         }
         result
     }
-
 }
 
 impl UnconstructedBuilding {
