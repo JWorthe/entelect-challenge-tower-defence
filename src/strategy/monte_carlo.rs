@@ -159,20 +159,15 @@ impl CommandScore {
         let all_buildings = state.player.sensible_buildings(state.count_player_teslas() < 2, settings);
 
         let building_command_count = state.unoccupied_player_cells.len()*all_buildings.len();
-        let deconstruct_count = (settings.size.x as usize *settings.size.y as usize / 2) - state.unoccupied_player_cells.len();
         let nothing_count = 1;
         
-        let mut commands = Vec::with_capacity(building_command_count + deconstruct_count + nothing_count);
+        let mut commands = Vec::with_capacity(building_command_count + nothing_count);
         commands.push(CommandScore::new(Command::Nothing));
 
         for &position in &state.unoccupied_player_cells {
             for &building in &all_buildings {
                 commands.push(CommandScore::new(Command::Build(position, building)));
             }
-        }
-
-        for &position in &state.occupied_player_cells() {
-            commands.push(CommandScore::new(Command::Deconstruct(position)));
         }
 
         commands
