@@ -13,6 +13,11 @@ fn it_successfully_simulates_replay() {
     test_from_replay("tests/after_200", 64);
 }
 
+#[test]
+fn it_successfully_simulates_replay_with_teslas() {
+    test_from_replay("tests/after_203_teslas", 60);
+}
+
 fn test_from_replay(replay_folder: &str, length: usize) {
     let (settings, mut state) = json::read_state_from_file(&format!("{}/Round 000/state.json", replay_folder)).unwrap();
     

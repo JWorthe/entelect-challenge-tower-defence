@@ -127,7 +127,7 @@ impl GameState {
         GameState::update_construction(&mut self.player_unconstructed_buildings, &mut self.player_buildings, &mut self.player);
         GameState::update_construction(&mut self.opponent_unconstructed_buildings, &mut self.opponent_buildings, &mut self.opponent);
 
-        GameState::fire_teslas(&mut self.player, &mut self.player_buildings, &mut self.opponent, &mut self.opponent_buildings, &settings);
+        GameState::fire_teslas(&mut self.player, &mut self.player_buildings, &mut self.unoccupied_player_cells, &mut self.opponent, &mut self.opponent_buildings, &mut self.unoccupied_opponent_cells, &settings);
 
         GameState::add_missiles(&mut self.player_buildings, &mut self.player_missiles);
         GameState::add_missiles(&mut self.opponent_buildings, &mut self.opponent_missiles);
@@ -202,7 +202,7 @@ impl GameState {
         unconstructed_buildings.truncate(buildings_len);
     }
 
-    fn fire_teslas(player: &mut Player, player_buildings: &mut Vec<Building>, opponent: &mut Player, opponent_buildings: &mut Vec<Building>, settings: &GameSettings) {
+    fn fire_teslas(player: &mut Player, player_buildings: &mut Vec<Building>, player_unoccupied_cells: &mut Vec<Point>, opponent: &mut Player, opponent_buildings: &mut Vec<Building>, opponent_unoccupied_cells: &mut Vec<Point>,settings: &GameSettings) {
         for tesla in player_buildings.iter_mut().filter(|b| b.weapon_damage == 20) {
             if tesla.weapon_cooldown_time_left > 0 {
                 tesla.weapon_cooldown_time_left -= 1;
@@ -250,7 +250,17 @@ impl GameState {
                 }
             }
         }
+        
+        for building in player_buildings.iter().filter(|b| b.health == 0) {
+            player_unoccupied_cells.push(building.pos);
+            player.energy_generated -= building.energy_generated_per_turn;
+        }
         player_buildings.retain(|b| b.health > 0);
+
+        for building in opponent_buildings.iter().filter(|b| b.health == 0) {
+            opponent_unoccupied_cells.push(building.pos);
+            opponent.energy_generated -= building.energy_generated_per_turn;
+        }
         opponent_buildings.retain(|b| b.health > 0);
     }
         
