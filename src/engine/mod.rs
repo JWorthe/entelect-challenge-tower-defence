@@ -2,7 +2,7 @@ pub mod command;
 pub mod geometry;
 pub mod settings;
 pub mod expressive_engine;
-
+pub mod bitwise_engine;
 
 use self::command::{Command};
 use self::geometry::Point;
@@ -27,7 +27,7 @@ pub enum GameStatus {
     Draw
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Player {
     pub energy: u16,
     pub health: u8,
