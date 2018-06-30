@@ -15,7 +15,7 @@ use std::fs::File;
 use std::io::prelude::*;
 use std::process;
 
-fn choose_move(settings: &engine::settings::GameSettings, state: &engine::GameState, start_time: &PreciseTime) -> Command {
+fn choose_move<GS:engine::GameState>(settings: &engine::settings::GameSettings, state: &GS, start_time: &PreciseTime) -> Command {
     #[cfg(not(feature = "reduced-time"))]
     #[cfg(not(feature = "extended-time"))]
     let max_time = Duration::milliseconds(1950);

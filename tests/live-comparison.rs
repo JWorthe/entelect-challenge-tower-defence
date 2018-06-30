@@ -4,6 +4,7 @@ use zombot::input::json;
 use zombot::engine::command::{Command, BuildingType};
 use zombot::engine::geometry::Point;
 use zombot::engine::settings::GameSettings;
+use zombot::engine::GameState;
 
 use std::fs::File;
 use std::io::prelude::*;
@@ -26,7 +27,7 @@ fn test_from_replay(replay_folder: &str, length: usize) {
         let opponent = read_opponent_command(&format!("{}/Round {:03}/OpponentCommand.txt", replay_folder, i), &settings);
         let (_, mut expected_state) = json::read_state_from_file(&format!("{}/Round {:03}/state.json", replay_folder, i+1)).unwrap();
         
-        state.simulate_mut(&settings, player, opponent);
+        state.simulate(&settings, player, opponent);
         state.sort();
         expected_state.sort();
         assert_eq!(state, expected_state, "\nFailed on state {}\n", i+1);

@@ -1,10 +1,10 @@
 use engine::settings::GameSettings;
 use engine::command::*;
 use engine::geometry::*;
-use engine::{GameState, GameStatus};
+use engine::{GameState, GameStatus, Player};
 
 use rand::{Rng, XorShiftRng, SeedableRng};
-    
+
 const MAX_MOVES: u16 = 400;
 
 use time::{Duration, PreciseTime};
@@ -12,7 +12,10 @@ use time::{Duration, PreciseTime};
 #[cfg(not(feature = "single-threaded"))]
 use rayon::prelude::*;
 
-pub fn choose_move(settings: &GameSettings, state: &GameState, start_time: &PreciseTime, max_time: Duration) -> Command {
+#[cfg(feature = "energy-cutoff")] pub const ENERGY_PRODUCTION_CUTOFF: u16 = 30;
+#[cfg(feature = "energy-cutoff")] pub const ENERGY_STORAGE_CUTOFF: u16 = 45;
+
+pub fn choose_move<GS: GameState>(settings: &GameSettings, state: &GS, start_time: &PreciseTime, max_time: Duration) -> Command {
     let mut command_scores = CommandScore::init_command_scores(settings, state);
     
     loop {
@@ -51,22 +54,24 @@ pub fn choose_move(settings: &GameSettings, state: &GameState, start_time: &Prec
     }
 }
 
-fn simulate_to_endstate<R: Rng>(command_score: &mut CommandScore, settings: &GameSettings, state: &GameState, rng: &mut R) {
-    let opponent_first = random_opponent_move(settings, state, rng);
-    let mut state_mut = state.simulate(settings, command_score.command, opponent_first);
+fn simulate_to_endstate<R: Rng, GS: GameState>(command_score: &mut CommandScore, settings: &GameSettings, state: &GS, rng: &mut R) {
+    let mut state_mut = state.clone();
+    
+    let opponent_first = random_opponent_move(settings, &state_mut, rng);
+    let mut status = state_mut.simulate(settings, command_score.command, opponent_first);
     
     for _ in 0..MAX_MOVES {
-        if state_mut.status != GameStatus::Continue {
+        if status != GameStatus::Continue {
             break;
         }
 
         let player_command = random_player_move(settings, &state_mut, rng);
         let opponent_command = random_opponent_move(settings, &state_mut, rng);
-        state_mut.simulate_mut(settings, player_command, opponent_command);
+        status = state_mut.simulate(settings, player_command, opponent_command);
     }
 
     let next_seed = [rng.next_u32(), rng.next_u32(), rng.next_u32(), rng.next_u32()];
-    match state_mut.status {
+    match status {
         GameStatus::PlayerWon => command_score.add_victory(next_seed),
         GameStatus::OpponentWon => command_score.add_defeat(next_seed),
         GameStatus::Continue => command_score.add_stalemate(next_seed),
@@ -74,14 +79,14 @@ fn simulate_to_endstate<R: Rng>(command_score: &mut CommandScore, settings: &Gam
     }
 }
 
-fn random_player_move<R: Rng>(settings: &GameSettings, state: &GameState, rng: &mut R) -> Command {
-    let all_buildings = state.player.sensible_buildings(state.count_player_teslas() < 2, settings);
-    random_move(&state.unoccupied_player_cells, &all_buildings, rng)
+fn random_player_move<R: Rng, GS: GameState>(settings: &GameSettings, state: &GS, rng: &mut R) -> Command {
+    let all_buildings = sensible_buildings(settings, &state.player(), state.player_has_max_teslas());
+    random_move(&state.unoccupied_player_cells(), &all_buildings, rng)
 }
 
-fn random_opponent_move<R: Rng>(settings: &GameSettings, state: &GameState, rng: &mut R) -> Command {
-    let all_buildings = state.opponent.sensible_buildings(state.count_opponent_teslas() < 2, settings);
-    random_move(&state.unoccupied_opponent_cells, &all_buildings, rng)
+fn random_opponent_move<R: Rng, GS: GameState>(settings: &GameSettings, state: &GS, rng: &mut R) -> Command {
+    let all_buildings = sensible_buildings(settings, &state.opponent(), state.opponent_has_max_teslas());
+    random_move(&state.unoccupied_opponent_cells(), &all_buildings, rng)
 }
 
 fn random_move<R: Rng>(free_positions: &[Point], all_buildings: &[BuildingType], rng: &mut R) -> Command {
@@ -155,16 +160,16 @@ impl CommandScore {
         (self.victories as i32 - self.defeats as i32) * 10000 / (self.attempts as i32)
     }
     
-    fn init_command_scores(settings: &GameSettings, state: &GameState) -> Vec<CommandScore> {
-        let all_buildings = state.player.sensible_buildings(state.count_player_teslas() < 2, settings);
+    fn init_command_scores<GS: GameState>(settings: &GameSettings, state: &GS) -> Vec<CommandScore> {
+        let all_buildings = sensible_buildings(settings, &state.player(), state.player_has_max_teslas());
 
-        let building_command_count = state.unoccupied_player_cells.len()*all_buildings.len();
+        let building_command_count = state.unoccupied_player_cells().len()*all_buildings.len();
         let nothing_count = 1;
         
         let mut commands = Vec::with_capacity(building_command_count + nothing_count);
         commands.push(CommandScore::new(Command::Nothing));
 
-        for &position in &state.unoccupied_player_cells {
+        for &position in state.unoccupied_player_cells() {
             for &building in &all_buildings {
                 commands.push(CommandScore::new(Command::Build(position, building)));
             }
@@ -173,3 +178,37 @@ impl CommandScore {
         commands
     }
 }
+
+#[cfg(not(feature = "energy-cutoff"))]
+fn sensible_buildings(settings: &GameSettings, player: &Player, has_max_teslas: bool) -> Vec<BuildingType> {
+    let mut result = Vec::with_capacity(4);
+    for b in BuildingType::all().iter() {
+        let building_setting = settings.building_settings(*b);
+        let affordable = building_setting.price <= player.energy;
+        let is_tesla = b == BuildingType::Tesla;
+        if affordable && (!is_tesla || !has_max_teslas) {
+            result.push(*b);
+        }
+    }
+    result
+}
+
+
+#[cfg(feature = "energy-cutoff")]
+fn sensible_buildings(settings: &GameSettings, player: &Player, has_max_teslas: bool) -> Vec<BuildingType> {
+    let mut result = Vec::with_capacity(4);
+    let needs_energy = player.energy_generated <= ENERGY_PRODUCTION_CUTOFF ||
+        player.energy <= ENERGY_STORAGE_CUTOFF;
+    
+    for b in BuildingType::all().iter() {
+        let building_setting = settings.building_settings(*b);
+        let affordable = building_setting.price <= player.energy;
+        let energy_producing = building_setting.energy_generated_per_turn > 0;
+        let is_tesla = *b == BuildingType::Tesla;
+        if affordable && (!energy_producing || needs_energy) && (!is_tesla || !has_max_teslas) {
+            result.push(*b);
+        }
+    }
+    result
+}
+

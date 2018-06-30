@@ -3,10 +3,11 @@ use std::io::prelude::*;
 use serde_json;
 use std::error::Error;
 
-use ::engine;
+use engine;
+use engine::expressive_engine;
 
 
-pub fn read_state_from_file(filename: &str) -> Result<(engine::settings::GameSettings, engine::GameState), Box<Error>> {
+pub fn read_state_from_file(filename: &str) -> Result<(engine::settings::GameSettings, expressive_engine::ExpressiveGameState), Box<Error>> {
     let mut file = File::open(filename)?;
     let mut content = String::new();
     file.read_to_string(&mut content)?;
@@ -121,10 +122,10 @@ impl State {
         )
     }
     
-    fn to_engine(&self, settings: &engine::settings::GameSettings) -> engine::GameState {
+    fn to_engine(&self, settings: &engine::settings::GameSettings) -> expressive_engine::ExpressiveGameState {
         let player_buildings = self.buildings_to_engine('A');
         let opponent_buildings = self.buildings_to_engine('B');
-        engine::GameState::new(
+        expressive_engine::ExpressiveGameState::new(
             self.player().to_engine(settings, &player_buildings),
             self.opponent().to_engine(settings, &opponent_buildings),
             self.unconstructed_buildings_to_engine('A'),
@@ -149,7 +150,7 @@ impl State {
             .expect("Opponent character did not appear in state.json")
     }
 
-    fn unconstructed_buildings_to_engine(&self, player_type: char) -> Vec<engine::UnconstructedBuilding> {
+    fn unconstructed_buildings_to_engine(&self, player_type: char) -> Vec<expressive_engine::UnconstructedBuilding> {
         self.game_map.iter()
             .flat_map(|row| row.iter()
                       .flat_map(|cell| cell.buildings.iter()
@@ -160,7 +161,7 @@ impl State {
             .collect()
     }
     
-    fn buildings_to_engine(&self, player_type: char) -> Vec<engine::Building> {
+    fn buildings_to_engine(&self, player_type: char) -> Vec<expressive_engine::Building> {
         self.game_map.iter()
             .flat_map(|row| row.iter()
                       .flat_map(|cell| cell.buildings.iter()
@@ -171,7 +172,7 @@ impl State {
             .collect()
     }
 
-    fn missiles_to_engine(&self, player_type: char) -> Vec<engine::Missile> {
+    fn missiles_to_engine(&self, player_type: char) -> Vec<expressive_engine::Missile> {
         self.game_map.iter()
             .flat_map(|row| row.iter()
                       .flat_map(|cell| cell.missiles.iter()
@@ -198,14 +199,14 @@ impl BuildingBlueprint {
 }
 
 impl Player {
-    fn to_engine(&self, settings: &engine::settings::GameSettings, buildings: &[engine::Building]) -> engine::Player {
+    fn to_engine(&self, settings: &engine::settings::GameSettings, buildings: &[expressive_engine::Building]) -> engine::Player {
         engine::Player::new(self.energy, self.health, settings, buildings)
     }
 }
 
 impl BuildingState {
-    fn to_engine(&self) -> engine::Building {
-        engine::Building {
+    fn to_engine(&self) -> expressive_engine::Building {
+        expressive_engine::Building {
             pos: engine::geometry::Point::new(self.x, self.y),
             health: self.health,
             weapon_damage: self.weapon_damage,
@@ -216,8 +217,8 @@ impl BuildingState {
         }
     }
 
-    fn to_engine_unconstructed(&self) -> engine::UnconstructedBuilding {
-        engine::UnconstructedBuilding {
+    fn to_engine_unconstructed(&self) -> expressive_engine::UnconstructedBuilding {
+        expressive_engine::UnconstructedBuilding {
             pos: engine::geometry::Point::new(self.x, self.y),
             health: self.health,
             construction_time_left: self.construction_time_left as u8, // > 0 check already happened
@@ -230,8 +231,8 @@ impl BuildingState {
 }
 
 impl MissileState {
-    fn to_engine(&self) -> engine::Missile {
-        engine::Missile {
+    fn to_engine(&self) -> expressive_engine::Missile {
+        expressive_engine::Missile {
             pos: engine::geometry::Point::new(self.x, self.y),
             damage: self.damage,
             speed: self.speed,
