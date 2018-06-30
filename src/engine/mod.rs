@@ -33,13 +33,3 @@ pub struct Player {
     pub health: u8,
     pub energy_generated: u16,
 }
-
-impl Player {
-    pub fn new(energy: u16, health: u8, settings: &GameSettings, buildings: &[expressive_engine::Building]) -> Player {
-        Player {
-            energy,
-            health,
-            energy_generated: settings.energy_income + buildings.iter().map(|b| b.energy_generated_per_turn).sum::<u16>()
-        }
-    }
-}

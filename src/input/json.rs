@@ -200,7 +200,11 @@ impl BuildingBlueprint {
 
 impl Player {
     fn to_engine(&self, settings: &engine::settings::GameSettings, buildings: &[expressive_engine::Building]) -> engine::Player {
-        engine::Player::new(self.energy, self.health, settings, buildings)
+        engine::Player {
+            energy: self.energy,
+            health: self.health,
+            energy_generated: settings.energy_income + buildings.iter().map(|b| b.energy_generated_per_turn).sum::<u16>()
+        }
     }
 }
 
