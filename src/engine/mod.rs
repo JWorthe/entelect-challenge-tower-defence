@@ -331,10 +331,6 @@ impl GameState {
         };
     }
 
-    pub fn unoccupied_player_cells_in_row(&self, y: u8) -> Vec<Point> {
-        self.unoccupied_player_cells.iter().filter(|p| p.y == y).cloned().collect()
-    }
-
     fn unoccupied_cells(buildings: &[Building], unconstructed_buildings: &[UnconstructedBuilding], bl: Point, tr: Point) -> Vec<Point> {
         let mut result = Vec::with_capacity((tr.y-bl.y) as usize * (tr.x-bl.x) as usize);
         for y in bl.y..tr.y {
@@ -346,18 +342,6 @@ impl GameState {
             }
         }
         result
-    }
-
-    
-    pub fn occupied_player_cells(&self) -> Vec<Point> {
-        self.player_unconstructed_buildings.iter().map(|b| b.pos)
-            .chain(self.player_buildings.iter().map(|b| b.pos))
-            .collect()
-    }
-    pub fn occupied_opponent_cells(&self) -> Vec<Point> {
-        self.opponent_unconstructed_buildings.iter().map(|b| b.pos)
-            .chain(self.opponent_buildings.iter().map(|b| b.pos))
-            .collect()
     }
 
     pub fn count_player_teslas(&self) -> usize {
