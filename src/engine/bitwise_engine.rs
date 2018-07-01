@@ -4,7 +4,6 @@ use engine::settings::{GameSettings};
 use engine::{GameStatus, Player, GameState};
 
 const MAP_WIDTH: usize = 16;
-const MAP_HEIGHT: usize = 8;
 
 const MISSILE_COOLDOWN: usize = 3;
 
@@ -51,8 +50,17 @@ pub struct TeslaCooldown {
 const EMPTY: [Point; 0] = [];
 
 impl GameState for BitwiseGameState {
-    fn simulate(&mut self, _settings: &GameSettings, _player_command: Command, _opponent_command: Command) -> GameStatus {
-        //TODO
+    fn simulate(&mut self, settings: &GameSettings, _player_command: Command, _opponent_command: Command) -> GameStatus {
+        //TODO: Commands
+        //TODO: Make buildings out of under construction buildings
+        //TODO: Fire the TESLAS!
+        //TODO: Put missiles on the map
+        //TODO: Move and collide missiles
+
+        BitwiseGameState::add_energy(settings, &mut self.player, &mut self.player_buildings);
+        BitwiseGameState::add_energy(settings, &mut self.opponent, &mut self.opponent_buildings);
+
+        self.update_status();
         self.status
     }
 
@@ -76,6 +84,23 @@ impl BitwiseGameState {
             player_buildings, opponent_buildings
         }
     }
+
+    fn add_energy(settings: &GameSettings, player: &mut Player, player_buildings: &mut PlayerBuildings) {
+        player.energy_generated = player_buildings.energy_towers.count_ones() as u16 * settings.energy.energy_generated_per_turn;
+        player.energy += player.energy_generated;
+    }
+
+    fn update_status(&mut self) {
+        let player_dead = self.player.health == 0;
+        let opponent_dead = self.opponent.health == 0;
+        self.status = match (player_dead, opponent_dead) {
+            (true, true) => GameStatus::Draw,
+            (false, true) => GameStatus::PlayerWon,
+            (true, false) => GameStatus::OpponentWon,
+            (false, false) => GameStatus::Continue,
+        };
+    }
+
 }
 
 impl PlayerBuildings {

@@ -244,18 +244,7 @@ impl State {
             )
             .collect()
     }
-
-    fn unconstructed_buildings_to_bitwise_engine(&self, player_type: char) -> Vec<bitwise_engine::UnconstructedBuilding> {
-        self.game_map.iter()
-            .flat_map(|row| row.iter()
-                      .flat_map(|cell| cell.buildings.iter()
-                                .filter(|b| b.player_type == player_type && b.construction_time_left >= 0)
-                                .map(|b| b.to_bitwise_engine_unconstructed())
-                      )
-            )
-            .collect()
-    }
-    
+   
     fn buildings_to_expressive_engine(&self, player_type: char) -> Vec<expressive_engine::Building> {
         self.game_map.iter()
             .flat_map(|row| row.iter()
