@@ -19,8 +19,17 @@ use rand::{Rng, XorShiftRng, SeedableRng};
 
 const STATE_PATH: &str = "tests/state0.json";
 
+#[test]
+fn reads_into_bitwise_correctly() {
+    let (_, expressive_state) = input::json::read_expressive_state_from_file(STATE_PATH).expect("Failed to load expressive state");
+    let bitwise_state = input::json::read_bitwise_state_from_file(STATE_PATH).expect("Failed to load bitwise state");
+
+    assert_eq!(build_bitwise_from_expressive(&expressive_state), bitwise_state.clone());
+}
+
 proptest! {
     #[test]
+    #[ignore]
     fn follows_the_same_random_game_tree(seed in any::<[u32;4]>()) {
         let mut rng = XorShiftRng::from_seed(seed);
         
@@ -86,44 +95,129 @@ fn sensible_buildings(settings: &GameSettings, player: &Player, has_max_teslas: 
 }
 
 fn build_bitwise_from_expressive(expressive: &expressive_engine::ExpressiveGameState) -> bitwise_engine::BitwiseGameState {
-    //TODO
+    let player_unconstructed = expressive.player_unconstructed_buildings.iter()
+        .map(build_bitwise_unconstructed_from_expressive)
+        .collect();
+    let opponent_unconstructed = expressive.opponent_unconstructed_buildings.iter()
+        .map(build_bitwise_unconstructed_from_expressive)
+        .collect();
+    
+    let player_energy = expressive.player_buildings.iter()
+        .filter(|b| identify_building_type(b.weapon_damage, b.energy_generated_per_turn) == BuildingType::Energy)
+        .fold(0, |acc, next| acc | next.pos.to_left_bitfield(8));
+    let opponent_energy = expressive.opponent_buildings.iter()
+        .filter(|b| identify_building_type(b.weapon_damage, b.energy_generated_per_turn) == BuildingType::Energy)
+        .fold(0, |acc, next| acc | next.pos.to_left_bitfield(8));
+
+    let mut player_buildings_iter = (0..4)
+        .map(|i| expressive.player_buildings.iter()
+             .filter(|b| b.health >= i*5)
+             .fold(0, |acc, next| acc | next.pos.to_left_bitfield(8))
+        );
+    let mut opponent_buildings_iter = (0..4)
+        .map(|i| expressive.opponent_buildings.iter()
+             .filter(|b| b.health >= i*5)
+             .fold(0, |acc, next| acc | next.pos.to_left_bitfield(8))
+        );
+
+    let mut player_attack_iter = (0..4)
+        .map(|i| expressive.player_buildings.iter()
+             .filter(|b| identify_building_type(b.weapon_damage, b.energy_generated_per_turn) == BuildingType::Attack)
+             .filter(|b| b.weapon_cooldown_time_left == i)
+             .fold(0, |acc, next| acc | next.pos.to_left_bitfield(8))
+        );
+    let mut opponent_attack_iter = (0..4)
+        .map(|i| expressive.opponent_buildings.iter()
+             .filter(|b| identify_building_type(b.weapon_damage, b.energy_generated_per_turn) == BuildingType::Attack)
+             .filter(|b| b.weapon_cooldown_time_left == i)
+             .fold(0, |acc, next| acc | next.pos.to_left_bitfield(8))
+        );
+
+    let empty_missiles: [(u64,u64);4] = [(0,0),(0,0),(0,0),(0,0)];
+    let player_missiles = expressive.player_missiles.iter()
+        .fold(empty_missiles, |acc, m| {
+            let (mut left, mut right) = m.pos.to_bitfield(8);
+            let mut res = acc.clone();
+            for mut tier in res.iter_mut() {
+                let setting = (!tier.0 & left, !tier.1 & right);
+                tier.0 |= setting.0;
+                tier.1 |= setting.1;
+                left &= !setting.0;
+                right &= !setting.1;
+            }
+            res
+        });
+    let opponent_missiles = expressive.opponent_missiles.iter()
+        .fold(empty_missiles, |acc, m| {
+            let (mut left, mut right) = m.pos.to_bitfield(8);
+            let mut res = acc.clone();
+            for mut tier in res.iter_mut() {
+                let setting = (!tier.0 & left, !tier.1 & right);
+                tier.0 |= setting.0;
+                tier.1 |= setting.1;
+                left &= !setting.0;
+                right &= !setting.1;
+            }
+            res
+        });
+
+    let null_tesla = bitwise_engine::TeslaCooldown {
+        active: false,
+        pos: Point::new(0,0),
+        cooldown: 0
+    };
+    let mut player_tesla_iter = expressive.player_buildings.iter()
+        .filter(|b| identify_building_type(b.weapon_damage, b.energy_generated_per_turn) == BuildingType::Tesla)
+        .map(|b| bitwise_engine::TeslaCooldown {
+            active: true,
+            pos: b.pos,
+            cooldown: b.weapon_cooldown_time_left
+        });
+    let mut opponent_tesla_iter = expressive.opponent_buildings.iter()
+        .filter(|b| identify_building_type(b.weapon_damage, b.energy_generated_per_turn) == BuildingType::Tesla)
+        .map(|b| bitwise_engine::TeslaCooldown {
+            active: true,
+            pos: b.pos,
+            cooldown: b.weapon_cooldown_time_left
+        });
     bitwise_engine::BitwiseGameState {
         status: expressive.status,
         player: expressive.player.clone(),
         opponent: expressive.opponent.clone(),
         player_buildings: bitwise_engine::PlayerBuildings {
-            unconstructed: Vec::new(),
-            buildings: [0,0,0,0],
-            energy_towers: 0,
-            missile_towers: [0,0,0],
-            missiles: [(0,0),(0,0),(0,0),(0,0)],
-            tesla_cooldowns: [bitwise_engine::TeslaCooldown {
-                active: false,
-                pos: Point::new(0,0),
-                cooldown: 0
-            }, bitwise_engine::TeslaCooldown {
-                active: false,
-                pos: Point::new(0,0),
-                cooldown: 0
-            }],
-            unoccupied: Vec::new()
+            unconstructed: player_unconstructed,
+            buildings: [player_buildings_iter.next().unwrap(), player_buildings_iter.next().unwrap(), player_buildings_iter.next().unwrap(), player_buildings_iter.next().unwrap()],
+            energy_towers: player_energy,
+            missile_towers: [player_attack_iter.next().unwrap(), player_attack_iter.next().unwrap(), player_attack_iter.next().unwrap(), player_attack_iter.next().unwrap()],
+            missiles: player_missiles,
+            tesla_cooldowns: [player_tesla_iter.next().unwrap_or(null_tesla.clone()),
+                              player_tesla_iter.next().unwrap_or(null_tesla.clone())]
         },
         opponent_buildings: bitwise_engine::PlayerBuildings {
-            unconstructed: Vec::new(),
-            buildings: [0,0,0,0],
-            energy_towers: 0,
-            missile_towers: [0,0,0],
-            missiles: [(0,0),(0,0),(0,0),(0,0)],
-            tesla_cooldowns: [bitwise_engine::TeslaCooldown {
-                active: false,
-                pos: Point::new(0,0),
-                cooldown: 0
-            }, bitwise_engine::TeslaCooldown {
-                active: false,
-                pos: Point::new(0,0),
-                cooldown: 0
-            }],
-            unoccupied: Vec::new()
+            unconstructed: opponent_unconstructed,
+            buildings: [opponent_buildings_iter.next().unwrap(), opponent_buildings_iter.next().unwrap(), opponent_buildings_iter.next().unwrap(), opponent_buildings_iter.next().unwrap()],
+            energy_towers: opponent_energy,
+            missile_towers: [opponent_attack_iter.next().unwrap(), opponent_attack_iter.next().unwrap(), opponent_attack_iter.next().unwrap(), opponent_attack_iter.next().unwrap()],
+            missiles: opponent_missiles,
+            tesla_cooldowns: [opponent_tesla_iter.next().unwrap_or(null_tesla.clone()),
+                              opponent_tesla_iter.next().unwrap_or(null_tesla.clone())]
         }
+    }
+}
+
+fn build_bitwise_unconstructed_from_expressive(b: &expressive_engine::UnconstructedBuilding) -> bitwise_engine::UnconstructedBuilding {
+    bitwise_engine::UnconstructedBuilding {
+        pos: b.pos,
+        construction_time_left: b.construction_time_left,
+        building_type: identify_building_type(b.weapon_damage, b.energy_generated_per_turn)
+    }
+}
+
+fn identify_building_type(weapon_damage: u8, energy_generated_per_turn: u16) -> BuildingType {
+    match (weapon_damage, energy_generated_per_turn) {
+        (5, _) => BuildingType::Attack,
+        (20, _) => BuildingType::Tesla,
+        (_, 3) => BuildingType::Energy,
+        _ => BuildingType::Defence
     }
 }

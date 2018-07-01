@@ -27,12 +27,10 @@ pub struct PlayerBuildings {
     pub buildings: [u64; DEFENCE_HEALTH],
     
     pub energy_towers: u64,
-    pub missile_towers: [u64; MISSILE_COOLDOWN],
+    pub missile_towers: [u64; MISSILE_COOLDOWN+1],
     
     pub missiles: [(u64, u64); MAP_WIDTH/4],
-    pub tesla_cooldowns: [TeslaCooldown; MAX_TESLAS],
-
-    pub unoccupied: Vec<Point>
+    pub tesla_cooldowns: [TeslaCooldown; MAX_TESLAS]
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -50,6 +48,8 @@ pub struct TeslaCooldown {
 }
 
 
+const EMPTY: [Point; 0] = [];
+
 impl GameState for BitwiseGameState {
     fn simulate(&mut self, _settings: &GameSettings, _player_command: Command, _opponent_command: Command) -> GameStatus {
         //TODO
@@ -61,8 +61,8 @@ impl GameState for BitwiseGameState {
     fn opponent(&self) -> &Player { &self.opponent }
     fn player_has_max_teslas(&self) -> bool { self.player_buildings.count_teslas() >= MAX_TESLAS }
     fn opponent_has_max_teslas(&self) -> bool { self.opponent_buildings.count_teslas() >= MAX_TESLAS }
-    fn unoccupied_player_cells(&self) -> &Vec<Point> { &self.player_buildings.unoccupied }
-    fn unoccupied_opponent_cells(&self) -> &Vec<Point> { &self.opponent_buildings.unoccupied }
+    fn unoccupied_player_cells(&self) -> &[Point] { &EMPTY }
+    fn unoccupied_opponent_cells(&self) -> &[Point] { &EMPTY }
 }
 
 impl PlayerBuildings {

@@ -31,6 +31,34 @@ impl Point {
     pub fn wrapping_move_right(&mut self) {
         self.x = self.x.wrapping_add(1);
     }
+
+    pub fn to_bitfield(&self, width: u8) -> (u64, u64) {
+        if self.x >= width {
+            let index = self.y * width + self.x - width;
+            (0, 1 << index)
+        } else {
+            let index = self.y * width + self.x;
+            (1 << index, 0)
+        }
+    }
+    
+    pub fn to_left_bitfield(&self, width: u8) -> u64 {
+        if self.x >= width {
+            0
+        } else {
+            let index = self.y * width + self.x;
+            1 << index
+        }
+    }
+
+    pub fn to_right_bitfield(&self, width: u8) -> u64 {
+        if self.x < width {
+            0
+        } else {
+            let index = self.y * width + self.x - width;
+            1 << index
+        }
+    }
 }
 
 use std::cmp::Ord;

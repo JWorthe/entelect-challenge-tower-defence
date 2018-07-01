@@ -15,8 +15,8 @@ pub trait GameState: Clone + Sync {
     fn opponent(&self) -> &Player;
     fn player_has_max_teslas(&self) -> bool;
     fn opponent_has_max_teslas(&self) -> bool;
-    fn unoccupied_player_cells(&self) -> &Vec<Point>;
-    fn unoccupied_opponent_cells(&self) -> &Vec<Point>;
+    fn unoccupied_player_cells(&self) -> &[Point];
+    fn unoccupied_opponent_cells(&self) -> &[Point];
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

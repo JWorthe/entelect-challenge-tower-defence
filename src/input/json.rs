@@ -32,7 +32,7 @@ pub fn read_bitwise_state_from_file(filename: &str) -> Result<bitwise_engine::Bi
             unconstructed: Vec::new(),
             buildings: [0,0,0,0],
             energy_towers: 0,
-            missile_towers: [0,0,0],
+            missile_towers: [0,0,0,0],
             missiles: [(0,0),(0,0),(0,0),(0,0)],
             tesla_cooldowns: [bitwise_engine::TeslaCooldown {
                 active: false,
@@ -42,14 +42,13 @@ pub fn read_bitwise_state_from_file(filename: &str) -> Result<bitwise_engine::Bi
                 active: false,
                 pos: engine::geometry::Point::new(0,0),
                 cooldown: 0
-            }],
-            unoccupied: Vec::new()
+            }]
         },
         opponent_buildings: bitwise_engine::PlayerBuildings {
             unconstructed: Vec::new(),
             buildings: [0,0,0,0],
             energy_towers: 0,
-            missile_towers: [0,0,0],
+            missile_towers: [0,0,0,0],
             missiles: [(0,0),(0,0),(0,0),(0,0)],
             tesla_cooldowns: [bitwise_engine::TeslaCooldown {
                 active: false,
@@ -59,8 +58,7 @@ pub fn read_bitwise_state_from_file(filename: &str) -> Result<bitwise_engine::Bi
                 active: false,
                 pos: engine::geometry::Point::new(0,0),
                 cooldown: 0
-            }],
-            unoccupied: Vec::new()
+            }]
         }
     })
 }

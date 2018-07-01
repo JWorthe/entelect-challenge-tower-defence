@@ -89,8 +89,8 @@ impl GameState for ExpressiveGameState {
     fn opponent(&self) -> &Player { &self.opponent }
     fn player_has_max_teslas(&self) -> bool { self.count_player_teslas() >= 2 }
     fn opponent_has_max_teslas(&self) -> bool { self.count_opponent_teslas() >= 2 }
-    fn unoccupied_player_cells(&self) -> &Vec<Point> { &self.unoccupied_player_cells }
-    fn unoccupied_opponent_cells(&self) -> &Vec<Point> { &self.unoccupied_opponent_cells }
+    fn unoccupied_player_cells(&self) -> &[Point] { &self.unoccupied_player_cells }
+    fn unoccupied_opponent_cells(&self) -> &[Point] { &self.unoccupied_opponent_cells }
 }
 
 impl ExpressiveGameState {
