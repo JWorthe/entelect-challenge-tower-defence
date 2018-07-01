@@ -198,8 +198,19 @@ impl State {
                     }
                 }
                 for missile in &cell.missiles {
-                    if missile.player_type == 'A' {
+                    let mut bitwise_buildings = if missile.player_type == 'A' {
+                        &mut player_buildings
                     } else {
+                        &mut opponent_buildings
+                    };
+                    let (mut left, mut right) = point.to_bitfield(8);
+
+                    for mut tier in bitwise_buildings.missiles.iter_mut() {
+                        let setting = (!tier.0 & left, !tier.1 & right);
+                        tier.0 |= setting.0;
+                        tier.1 |= setting.1;
+                        left &= !setting.0;
+                        right &= !setting.1;
                     }
                 }
             }
