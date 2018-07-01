@@ -185,7 +185,7 @@ fn sensible_buildings(settings: &GameSettings, player: &Player, has_max_teslas: 
     for b in BuildingType::all().iter() {
         let building_setting = settings.building_settings(*b);
         let affordable = building_setting.price <= player.energy;
-        let is_tesla = b == BuildingType::Tesla;
+        let is_tesla = *b == BuildingType::Tesla;
         if affordable && (!is_tesla || !has_max_teslas) {
             result.push(*b);
         }

@@ -10,7 +10,7 @@ use std::process;
 
 fn main() {
     let start_time = PreciseTime::now();
-    let (settings, state) = match input::json::read_state_from_file(STATE_PATH) {
+    let (settings, state) = match input::json::read_expressive_state_from_file(STATE_PATH) {
         Ok(ok) => ok,
         Err(error) => {
             println!("Error while parsing JSON file: {}", error);

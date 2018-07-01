@@ -10,7 +10,7 @@ const STATE_PATH: &str = "tests/state0.json";
 #[test]
 fn it_does_a_normal_turn_successfully() {
     let start_time = PreciseTime::now();
-    let (settings, state) = match input::json::read_state_from_file(STATE_PATH) {
+    let (settings, state) = match input::json::read_expressive_state_from_file(STATE_PATH) {
         Ok(ok) => ok,
         Err(error) => panic!("Error while parsing JSON file: {}", error)
     };

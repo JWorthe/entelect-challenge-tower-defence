@@ -5,9 +5,9 @@ use std::error::Error;
 
 use engine;
 use engine::expressive_engine;
+use engine::bitwise_engine;
 
-
-pub fn read_state_from_file(filename: &str) -> Result<(engine::settings::GameSettings, expressive_engine::ExpressiveGameState), Box<Error>> {
+pub fn read_expressive_state_from_file(filename: &str) -> Result<(engine::settings::GameSettings, expressive_engine::ExpressiveGameState), Box<Error>> {
     let mut file = File::open(filename)?;
     let mut content = String::new();
     file.read_to_string(&mut content)?;
@@ -16,6 +16,53 @@ pub fn read_state_from_file(filename: &str) -> Result<(engine::settings::GameSet
     let engine_settings = state.to_engine_settings();
     let engine_state = state.to_engine(&engine_settings);
     Ok((engine_settings, engine_state))
+}
+
+pub fn read_bitwise_state_from_file(filename: &str) -> Result<bitwise_engine::BitwiseGameState, Box<Error>> {
+    //TODO
+    Ok(bitwise_engine::BitwiseGameState {
+        status: engine::GameStatus::Continue,
+        player: engine::Player {
+            energy: 0, health: 0, energy_generated: 0
+        },
+        opponent: engine::Player {
+            energy: 0, health: 0, energy_generated: 0
+        },
+        player_buildings: bitwise_engine::PlayerBuildings {
+            unconstructed: Vec::new(),
+            buildings: [0,0,0,0],
+            energy_towers: 0,
+            missile_towers: [0,0,0],
+            missiles: [(0,0),(0,0),(0,0),(0,0)],
+            tesla_cooldowns: [bitwise_engine::TeslaCooldown {
+                active: false,
+                pos: engine::geometry::Point::new(0,0),
+                cooldown: 0
+            }, bitwise_engine::TeslaCooldown {
+                active: false,
+                pos: engine::geometry::Point::new(0,0),
+                cooldown: 0
+            }],
+            unoccupied: Vec::new()
+        },
+        opponent_buildings: bitwise_engine::PlayerBuildings {
+            unconstructed: Vec::new(),
+            buildings: [0,0,0,0],
+            energy_towers: 0,
+            missile_towers: [0,0,0],
+            missiles: [(0,0),(0,0),(0,0),(0,0)],
+            tesla_cooldowns: [bitwise_engine::TeslaCooldown {
+                active: false,
+                pos: engine::geometry::Point::new(0,0),
+                cooldown: 0
+            }, bitwise_engine::TeslaCooldown {
+                active: false,
+                pos: engine::geometry::Point::new(0,0),
+                cooldown: 0
+            }],
+            unoccupied: Vec::new()
+        }
+    })
 }
 
 #[derive(Deserialize)]

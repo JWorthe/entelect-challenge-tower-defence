@@ -20,12 +20,12 @@ fn it_successfully_simulates_replay_with_teslas() {
 }
 
 fn test_from_replay(replay_folder: &str, length: usize) {
-    let (settings, mut state) = json::read_state_from_file(&format!("{}/Round 000/state.json", replay_folder)).unwrap();
+    let (settings, mut state) = json::read_expressive_state_from_file(&format!("{}/Round 000/state.json", replay_folder)).unwrap();
     
     for i in 0..length {
         let player = read_player_command(&format!("{}/Round {:03}/PlayerCommand.txt", replay_folder, i));
         let opponent = read_opponent_command(&format!("{}/Round {:03}/OpponentCommand.txt", replay_folder, i), &settings);
-        let (_, mut expected_state) = json::read_state_from_file(&format!("{}/Round {:03}/state.json", replay_folder, i+1)).unwrap();
+        let (_, mut expected_state) = json::read_expressive_state_from_file(&format!("{}/Round {:03}/state.json", replay_folder, i+1)).unwrap();
         
         state.simulate(&settings, player, opponent);
         state.sort();

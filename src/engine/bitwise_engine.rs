@@ -14,25 +14,25 @@ const MAX_TESLAS: usize = 2;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BitwiseGameState {
-    status: GameStatus,
-    player: Player,
-    opponent: Player,
-    player_buildings: PlayerBuildings,
-    opponent_buildings: PlayerBuildings,
+    pub status: GameStatus,
+    pub player: Player,
+    pub opponent: Player,
+    pub player_buildings: PlayerBuildings,
+    pub opponent_buildings: PlayerBuildings,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-struct PlayerBuildings {
-    unconstructed: Vec<UnconstructedBuilding>,
-    energy_towers: [u8; MAP_HEIGHT],
-    missile_towers: [[u8; MAP_HEIGHT]; MISSILE_COOLDOWN],
-    defence_towers: [[u8; MAP_HEIGHT]; DEFENCE_HEALTH],
-    tesla_towers: [u8; MAP_HEIGHT],
+pub struct PlayerBuildings {
+    pub unconstructed: Vec<UnconstructedBuilding>,
+    pub buildings: [u64; DEFENCE_HEALTH],
     
-    missiles: [[u16; MAP_HEIGHT]; MAP_WIDTH/4],
-    tesla_cooldowns: [TeslaCooldown; MAX_TESLAS],
+    pub energy_towers: u64,
+    pub missile_towers: [u64; MISSILE_COOLDOWN],
+    
+    pub missiles: [(u64, u64); MAP_WIDTH/4],
+    pub tesla_cooldowns: [TeslaCooldown; MAX_TESLAS],
 
-    unoccupied: Vec<Point>
+    pub unoccupied: Vec<Point>
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
