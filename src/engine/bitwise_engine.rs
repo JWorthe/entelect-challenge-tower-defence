@@ -67,7 +67,6 @@ impl GameState for BitwiseGameState {
 
 impl PlayerBuildings {
     pub fn count_teslas(&self) -> usize {
-        //TODO
-        2
+        self.tesla_cooldowns.iter().filter(|t| t.active).count()
     }
 }
