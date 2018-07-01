@@ -59,6 +59,16 @@ impl Point {
             1 << index
         }
     }
+
+    pub fn to_either_bitfield(&self, width: u8) -> u64 {
+        if self.x >= width {
+            let index = self.y * width + self.x - width;
+            1 << index
+        } else {
+            let index = self.y * width + self.x;
+            1 << index
+        }
+    }
 }
 
 use std::cmp::Ord;

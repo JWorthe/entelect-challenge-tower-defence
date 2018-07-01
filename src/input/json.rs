@@ -165,7 +165,8 @@ impl State {
                     } else {
                         (&mut opponent, &mut opponent_buildings, point.to_right_bitfield(8))
                     };
-                    
+
+                    bitwise_buildings.occupied |= bitfield;
                     if building.construction_time_left >= 0 {
                         bitwise_buildings.unconstructed.push(building.to_bitwise_engine_unconstructed());
                     } else {

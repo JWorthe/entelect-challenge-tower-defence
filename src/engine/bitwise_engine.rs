@@ -24,6 +24,7 @@ pub struct BitwiseGameState {
 pub struct PlayerBuildings {
     pub unconstructed: Vec<UnconstructedBuilding>,
     pub buildings: [u64; DEFENCE_HEALTH],
+    pub occupied: u64,
     
     pub energy_towers: u64,
     pub missile_towers: [u64; MISSILE_COOLDOWN+1],
@@ -50,11 +51,16 @@ pub struct TeslaCooldown {
 const EMPTY: [Point; 0] = [];
 
 impl GameState for BitwiseGameState {
-    fn simulate(&mut self, settings: &GameSettings, _player_command: Command, _opponent_command: Command) -> GameStatus {
-        //TODO: Commands
-        //TODO: Make buildings out of under construction buildings
+    fn simulate(&mut self, settings: &GameSettings, player_command: Command, opponent_command: Command) -> GameStatus {
+        BitwiseGameState::perform_command(settings, &mut self.player, &mut self.player_buildings, player_command);      BitwiseGameState::perform_command(settings, &mut self.opponent, &mut self.opponent_buildings, opponent_command);
+
+        BitwiseGameState::update_construction(settings, &mut self.player_buildings);
+        BitwiseGameState::update_construction(settings, &mut self.opponent_buildings);
+        
         //TODO: Fire the TESLAS!
-        //TODO: Put missiles on the map
+
+        BitwiseGameState::add_left_missiles(&mut self.player_buildings);
+        BitwiseGameState::add_right_missiles(&mut self.opponent_buildings);
         //TODO: Move and collide missiles
 
         BitwiseGameState::add_energy(settings, &mut self.player, &mut self.player_buildings);
@@ -69,8 +75,8 @@ impl GameState for BitwiseGameState {
     fn opponent(&self) -> &Player { &self.opponent }
     fn player_has_max_teslas(&self) -> bool { self.player_buildings.count_teslas() >= MAX_TESLAS }
     fn opponent_has_max_teslas(&self) -> bool { self.opponent_buildings.count_teslas() >= MAX_TESLAS }
-    fn unoccupied_player_cells(&self) -> &[Point] { &EMPTY }
-    fn unoccupied_opponent_cells(&self) -> &[Point] { &EMPTY }
+    fn unoccupied_player_cells(&self) -> &[Point] { &EMPTY } //TODO
+    fn unoccupied_opponent_cells(&self) -> &[Point] { &EMPTY } //TODO
 }
 
 impl BitwiseGameState {
@@ -85,6 +91,143 @@ impl BitwiseGameState {
         }
     }
 
+    fn perform_command(settings: &GameSettings, player: &mut Player, player_buildings: &mut PlayerBuildings, command: Command) {
+        match command {
+            Command::Nothing => {},
+            Command::Build(p, b) => {
+                let blueprint = settings.building_settings(b);
+                let bitfield = p.to_either_bitfield(settings.size.x);
+
+                // This is used internally. I should not be making
+                // invalid moves!
+                debug_assert!(player_buildings.buildings[0] & bitfield == 0);
+                debug_assert!(p.x < settings.size.x && p.y < settings.size.y);
+                debug_assert!(player.energy >= blueprint.price);
+                debug_assert!(b != BuildingType::Tesla ||
+                              player_buildings.count_teslas() < MAX_TESLAS);
+
+                player.energy -= blueprint.price;
+                player_buildings.unconstructed.push(UnconstructedBuilding {
+                    pos: p,
+                    construction_time_left: blueprint.construction_time,
+                    building_type: b
+                });
+                player_buildings.occupied |= bitfield;
+            },
+            Command::Deconstruct(p) => {
+                let unconstructed_to_remove_index = player_buildings.unconstructed.iter().position(|ref b| b.pos == p);
+                let deconstruct_mask = !(p.to_either_bitfield(settings.size.x) & player_buildings.buildings[0]);
+                
+                debug_assert!(deconstruct_mask != 0 || unconstructed_to_remove_index.is_some());
+                
+                if let Some(i) = unconstructed_to_remove_index {
+                    player_buildings.unconstructed.swap_remove(i);
+                }
+                
+                player.energy += 5;
+                
+                for tier in 0..player_buildings.buildings.len() {
+                    player_buildings.buildings[tier] &= deconstruct_mask;
+                }
+                player_buildings.energy_towers &= deconstruct_mask;
+                for tier in 0..player_buildings.missile_towers.len() {
+                    player_buildings.missile_towers[tier] &= deconstruct_mask;
+                }
+                for tesla in 0..player_buildings.tesla_cooldowns.len() {
+                    if player_buildings.tesla_cooldowns[tesla].pos == p {
+                        player_buildings.tesla_cooldowns[tesla].active = false;
+                    }
+                }
+                player_buildings.occupied &= deconstruct_mask;
+            }
+        }
+    }
+
+    fn update_construction(settings: &GameSettings, player_buildings: &mut PlayerBuildings) {
+        let mut buildings_len = player_buildings.unconstructed.len();
+        for i in (0..buildings_len).rev() {
+            if player_buildings.unconstructed[i].construction_time_left == 0 {
+                let building_type = player_buildings.unconstructed[i].building_type;
+                let blueprint = settings.building_settings(building_type);
+                let pos = player_buildings.unconstructed[i].pos;
+                let bitfield = pos.to_either_bitfield(settings.size.x);
+                
+                for health_tier in 0..4 {
+                    if blueprint.health > health_tier*5 {
+                        player_buildings.buildings[health_tier as usize] |= bitfield;
+                    }
+                }
+                if building_type == BuildingType::Energy {
+                    player_buildings.energy_towers |= bitfield;
+                }
+                if building_type == BuildingType::Attack {
+                    player_buildings.missile_towers[0] |= bitfield;
+                }
+                if building_type == BuildingType::Tesla {
+                    let ref mut tesla_cooldown = if player_buildings.tesla_cooldowns[0].active {
+                        player_buildings.tesla_cooldowns[1]
+                    } else {
+                        player_buildings.tesla_cooldowns[0]
+                    };
+                    tesla_cooldown.active = true;
+                    tesla_cooldown.pos = pos;
+                    tesla_cooldown.cooldown = 0;
+                }
+                
+                buildings_len -= 1;
+                player_buildings.unconstructed.swap(i, buildings_len);
+            } else {
+                player_buildings.unconstructed[i].construction_time_left -= 1
+            }
+        }
+        player_buildings.unconstructed.truncate(buildings_len);
+    }
+
+
+    fn add_left_missiles(player_buildings: &mut PlayerBuildings) {
+        let mut missiles = player_buildings.missile_towers[0];
+        for mut tier in player_buildings.missiles.iter_mut() {
+            let setting = !tier.0 & missiles;
+            tier.0 |= setting;
+            missiles &= !setting;
+        }
+
+        BitwiseGameState::rotate_missile_towers(player_buildings);
+    }
+
+    fn add_right_missiles(player_buildings: &mut PlayerBuildings) {
+        let mut missiles = player_buildings.missile_towers[0];
+        for mut tier in player_buildings.missiles.iter_mut() {
+            let setting = !tier.1 & missiles;
+            tier.1 |= setting;
+            missiles &= !setting;
+        }
+
+        BitwiseGameState::rotate_missile_towers(player_buildings);
+    }
+
+    fn rotate_missile_towers(player_buildings: &mut PlayerBuildings) {
+        let zero = player_buildings.missile_towers[0];
+        for i in 1..player_buildings.missile_towers.len() {
+            player_buildings.missile_towers[i-1] = player_buildings.missile_towers[i];
+        }
+        let end = player_buildings.missile_towers.len()-1;
+        player_buildings.missile_towers[end] = zero;
+    }
+
+
+    fn move_and_collide_missiles_left(settings: &GameSettings, player_buildings: &mut PlayerBuildings, opponent: &mut Player) {
+        for _ in 0..settings.attack.weapon_speed {
+            for i in 0..player_buildings.missiles.len() {
+                //TODO this isn't so simple...
+                //collide some with the player, others jump the boundary
+                player_buildings.missiles[i].0 = player_buildings.missiles[i].0 << 1;
+                //TODO Collide with buildings
+            }
+        }
+    }
+    
+    
     fn add_energy(settings: &GameSettings, player: &mut Player, player_buildings: &mut PlayerBuildings) {
         player.energy_generated = player_buildings.energy_towers.count_ones() as u16 * settings.energy.energy_generated_per_turn;
         player.energy += player.energy_generated;
@@ -112,6 +255,7 @@ impl PlayerBuildings {
         PlayerBuildings {
             unconstructed: Vec::with_capacity(4),
             buildings: [0; 4],
+            occupied: 0,
             energy_towers: 0,
             missile_towers: [0; 4],
             missiles: [(0,0); 4],

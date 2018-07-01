@@ -129,6 +129,15 @@ fn build_bitwise_from_expressive(expressive: &expressive_engine::ExpressiveGameS
              .fold(0, |acc, next| acc | next.pos.to_right_bitfield(8))
         );
 
+    let player_occupied = expressive.player_buildings.iter()
+        .fold(0, |acc, next| acc | next.pos.to_left_bitfield(8)) |
+    expressive.player_unconstructed_buildings.iter()
+        .fold(0, |acc, next| acc | next.pos.to_left_bitfield(8));
+    let opponent_occupied = expressive.opponent_buildings.iter()
+        .fold(0, |acc, next| acc | next.pos.to_right_bitfield(8)) |
+    expressive.opponent_unconstructed_buildings.iter()
+        .fold(0, |acc, next| acc | next.pos.to_right_bitfield(8));
+
     let mut player_attack_iter = (0..4)
         .map(|i| expressive.player_buildings.iter()
              .filter(|b| identify_building_type(b.weapon_damage, b.energy_generated_per_turn) == BuildingType::Attack)
@@ -196,6 +205,7 @@ fn build_bitwise_from_expressive(expressive: &expressive_engine::ExpressiveGameS
         player_buildings: bitwise_engine::PlayerBuildings {
             unconstructed: player_unconstructed,
             buildings: [player_buildings_iter.next().unwrap(), player_buildings_iter.next().unwrap(), player_buildings_iter.next().unwrap(), player_buildings_iter.next().unwrap()],
+            occupied: player_occupied,
             energy_towers: player_energy,
             missile_towers: [player_attack_iter.next().unwrap(), player_attack_iter.next().unwrap(), player_attack_iter.next().unwrap(), player_attack_iter.next().unwrap()],
             missiles: player_missiles,
@@ -205,6 +215,7 @@ fn build_bitwise_from_expressive(expressive: &expressive_engine::ExpressiveGameS
         opponent_buildings: bitwise_engine::PlayerBuildings {
             unconstructed: opponent_unconstructed,
             buildings: [opponent_buildings_iter.next().unwrap(), opponent_buildings_iter.next().unwrap(), opponent_buildings_iter.next().unwrap(), opponent_buildings_iter.next().unwrap()],
+            occupied: opponent_occupied,
             energy_towers: opponent_energy,
             missile_towers: [opponent_attack_iter.next().unwrap(), opponent_attack_iter.next().unwrap(), opponent_attack_iter.next().unwrap(), opponent_attack_iter.next().unwrap()],
             missiles: opponent_missiles,
