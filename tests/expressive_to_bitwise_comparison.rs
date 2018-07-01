@@ -116,17 +116,17 @@ fn build_bitwise_from_expressive(expressive: &expressive_engine::ExpressiveGameS
         .fold(0, |acc, next| acc | next.pos.to_left_bitfield(8));
     let opponent_energy = expressive.opponent_buildings.iter()
         .filter(|b| identify_building_type(b.weapon_damage, b.energy_generated_per_turn) == BuildingType::Energy)
-        .fold(0, |acc, next| acc | next.pos.to_left_bitfield(8));
+        .fold(0, |acc, next| acc | next.pos.to_right_bitfield(8));
 
     let mut player_buildings_iter = (0..4)
         .map(|i| expressive.player_buildings.iter()
-             .filter(|b| b.health >= i*5)
+             .filter(|b| b.health > i*5)
              .fold(0, |acc, next| acc | next.pos.to_left_bitfield(8))
         );
     let mut opponent_buildings_iter = (0..4)
         .map(|i| expressive.opponent_buildings.iter()
-             .filter(|b| b.health >= i*5)
-             .fold(0, |acc, next| acc | next.pos.to_left_bitfield(8))
+             .filter(|b| b.health > i*5)
+             .fold(0, |acc, next| acc | next.pos.to_right_bitfield(8))
         );
 
     let mut player_attack_iter = (0..4)
@@ -139,7 +139,7 @@ fn build_bitwise_from_expressive(expressive: &expressive_engine::ExpressiveGameS
         .map(|i| expressive.opponent_buildings.iter()
              .filter(|b| identify_building_type(b.weapon_damage, b.energy_generated_per_turn) == BuildingType::Attack)
              .filter(|b| b.weapon_cooldown_time_left == i)
-             .fold(0, |acc, next| acc | next.pos.to_left_bitfield(8))
+             .fold(0, |acc, next| acc | next.pos.to_right_bitfield(8))
         );
 
     let empty_missiles: [(u64,u64);4] = [(0,0),(0,0),(0,0),(0,0)];

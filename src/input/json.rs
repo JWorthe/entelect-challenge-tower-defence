@@ -84,8 +84,8 @@ struct Player {
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct GameCell {
-    //x: u8,
-    //y: u8,
+    x: u8,
+    y: u8,
     buildings: Vec<BuildingState>,
     missiles: Vec<MissileState>,
     //cell_owner: char
@@ -150,43 +150,64 @@ impl State {
     }
 
     fn to_bitwise_engine(&self) -> bitwise_engine::BitwiseGameState {
-        let player_buildings = self.buildings_to_expressive_engine('A');
-        let opponent_buildings = self.buildings_to_expressive_engine('B');
-        bitwise_engine::BitwiseGameState::new(
-            self.player().to_bitwise_engine(),
-            self.opponent().to_bitwise_engine(),
-            bitwise_engine::PlayerBuildings {
-                unconstructed: self.unconstructed_buildings_to_bitwise_engine('A'),
-                buildings: [0,0,0,0],
-                energy_towers: 0,
-                missile_towers: [0,0,0,0],
-                missiles: [(0,0),(0,0),(0,0),(0,0)],
-                tesla_cooldowns: [bitwise_engine::TeslaCooldown {
-                    active: false,
-                    pos: engine::geometry::Point::new(0,0),
-                    cooldown: 0
-                }, bitwise_engine::TeslaCooldown {
-                    active: false,
-                    pos: engine::geometry::Point::new(0,0),
-                    cooldown: 0
-                }]
-            },
-            bitwise_engine::PlayerBuildings {
-                unconstructed: Vec::new(),
-                buildings: [0,0,0,0],
-                energy_towers: 0,
-                missile_towers: [0,0,0,0],
-                missiles: [(0,0),(0,0),(0,0),(0,0)],
-                tesla_cooldowns: [bitwise_engine::TeslaCooldown {
-                    active: false,
-                    pos: engine::geometry::Point::new(0,0),
-                    cooldown: 0
-                }, bitwise_engine::TeslaCooldown {
-                    active: false,
-                    pos: engine::geometry::Point::new(0,0),
-                    cooldown: 0
-                }]
+        let mut player = self.player().to_bitwise_engine();
+        let mut opponent = self.opponent().to_bitwise_engine();
+        let mut player_buildings = bitwise_engine::PlayerBuildings::empty();
+        let mut opponent_buildings = bitwise_engine::PlayerBuildings::empty();
+        for row in &self.game_map {
+            for cell in row {
+                let point = engine::geometry::Point::new(cell.x, cell.y);
+                for building in &cell.buildings {
+                    let building_type = building.convert_building_type();
+                    
+                    let (mut engine_player, mut bitwise_buildings, bitfield) = if building.player_type == 'A' {
+                        (&mut player, &mut player_buildings, point.to_left_bitfield(8))
+                    } else {
+                        (&mut opponent, &mut opponent_buildings, point.to_right_bitfield(8))
+                    };
+                    
+                    if building.construction_time_left >= 0 {
+                        bitwise_buildings.unconstructed.push(building.to_bitwise_engine_unconstructed());
+                    } else {
+                        for health_tier in 0..4 {
+                            if building.health > health_tier*5 {
+                                bitwise_buildings.buildings[health_tier as usize] |= bitfield;
+                            }
+                        }
+                        if building_type == command::BuildingType::Energy {
+                            bitwise_buildings.energy_towers |= bitfield;
+                            engine_player.energy_generated += building.energy_generated_per_turn;
+                        }
+                        if building_type == command::BuildingType::Attack {
+                            for cooldown_tier in 0..4 {
+                                if building.weapon_cooldown_time_left == cooldown_tier {
+                                    bitwise_buildings.missile_towers[cooldown_tier as usize] |= bitfield;
+                                }
+                            }
+                        }
+                        if building_type == command::BuildingType::Tesla {
+                            let ref mut tesla_cooldown = if bitwise_buildings.tesla_cooldowns[0].active {
+                                bitwise_buildings.tesla_cooldowns[1]
+                            } else {
+                                bitwise_buildings.tesla_cooldowns[0]
+                            };
+                            tesla_cooldown.active = true;
+                            tesla_cooldown.pos = point;
+                            tesla_cooldown.cooldown = building.weapon_cooldown_time_left;
+                        }
+                    }
+                }
+                for missile in &cell.missiles {
+                    if missile.player_type == 'A' {
+                    } else {
+                    }
+                }
             }
+        }
+            
+        bitwise_engine::BitwiseGameState::new(
+            player, opponent,
+            player_buildings, opponent_buildings
         )
     }
 

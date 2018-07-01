@@ -40,7 +40,7 @@ pub struct UnconstructedBuilding {
     pub building_type: BuildingType
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct TeslaCooldown {
     pub active: bool,
     pub pos: Point,
@@ -81,5 +81,26 @@ impl BitwiseGameState {
 impl PlayerBuildings {
     pub fn count_teslas(&self) -> usize {
         self.tesla_cooldowns.iter().filter(|t| t.active).count()
+    }
+
+    pub fn empty() -> PlayerBuildings {
+        PlayerBuildings {
+            unconstructed: Vec::with_capacity(4),
+            buildings: [0; 4],
+            energy_towers: 0,
+            missile_towers: [0; 4],
+            missiles: [(0,0); 4],
+            tesla_cooldowns: [TeslaCooldown::empty(); 2]
+        }
+    }
+}
+
+impl TeslaCooldown {
+    pub fn empty() -> TeslaCooldown {
+        TeslaCooldown {
+            active: false,
+            pos: Point::new(0,0),
+            cooldown: 0
+        }
     }
 }
