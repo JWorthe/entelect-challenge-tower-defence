@@ -4,6 +4,7 @@ use serde_json;
 use std::error::Error;
 
 use engine;
+use engine::command;
 use engine::expressive_engine;
 use engine::bitwise_engine;
 
@@ -14,53 +15,18 @@ pub fn read_expressive_state_from_file(filename: &str) -> Result<(engine::settin
     let state: State = serde_json::from_str(content.as_ref())?;
 
     let engine_settings = state.to_engine_settings();
-    let engine_state = state.to_engine(&engine_settings);
+    let engine_state = state.to_expressive_engine(&engine_settings);
     Ok((engine_settings, engine_state))
 }
 
 pub fn read_bitwise_state_from_file(filename: &str) -> Result<bitwise_engine::BitwiseGameState, Box<Error>> {
-    //TODO
-    Ok(bitwise_engine::BitwiseGameState {
-        status: engine::GameStatus::Continue,
-        player: engine::Player {
-            energy: 0, health: 0, energy_generated: 0
-        },
-        opponent: engine::Player {
-            energy: 0, health: 0, energy_generated: 0
-        },
-        player_buildings: bitwise_engine::PlayerBuildings {
-            unconstructed: Vec::new(),
-            buildings: [0,0,0,0],
-            energy_towers: 0,
-            missile_towers: [0,0,0,0],
-            missiles: [(0,0),(0,0),(0,0),(0,0)],
-            tesla_cooldowns: [bitwise_engine::TeslaCooldown {
-                active: false,
-                pos: engine::geometry::Point::new(0,0),
-                cooldown: 0
-            }, bitwise_engine::TeslaCooldown {
-                active: false,
-                pos: engine::geometry::Point::new(0,0),
-                cooldown: 0
-            }]
-        },
-        opponent_buildings: bitwise_engine::PlayerBuildings {
-            unconstructed: Vec::new(),
-            buildings: [0,0,0,0],
-            energy_towers: 0,
-            missile_towers: [0,0,0,0],
-            missiles: [(0,0),(0,0),(0,0),(0,0)],
-            tesla_cooldowns: [bitwise_engine::TeslaCooldown {
-                active: false,
-                pos: engine::geometry::Point::new(0,0),
-                cooldown: 0
-            }, bitwise_engine::TeslaCooldown {
-                active: false,
-                pos: engine::geometry::Point::new(0,0),
-                cooldown: 0
-            }]
-        }
-    })
+    let mut file = File::open(filename)?;
+    let mut content = String::new();
+    file.read_to_string(&mut content)?;
+    let state: State = serde_json::from_str(content.as_ref())?;
+
+    let engine_state = state.to_bitwise_engine();
+    Ok(engine_state)
 }
 
 #[derive(Deserialize)]
@@ -138,7 +104,7 @@ struct BuildingState {
     //destroy_multiplier: u32,
     //construction_score: u32,
     energy_generated_per_turn: u16,
-    //building_type: String,
+    building_type: String,
     x: u8,
     y: u8,
     player_type: char
@@ -167,19 +133,60 @@ impl State {
         )
     }
     
-    fn to_engine(&self, settings: &engine::settings::GameSettings) -> expressive_engine::ExpressiveGameState {
-        let player_buildings = self.buildings_to_engine('A');
-        let opponent_buildings = self.buildings_to_engine('B');
+    fn to_expressive_engine(&self, settings: &engine::settings::GameSettings) -> expressive_engine::ExpressiveGameState {
+        let player_buildings = self.buildings_to_expressive_engine('A');
+        let opponent_buildings = self.buildings_to_expressive_engine('B');
         expressive_engine::ExpressiveGameState::new(
             self.player().to_engine(settings, &player_buildings),
             self.opponent().to_engine(settings, &opponent_buildings),
-            self.unconstructed_buildings_to_engine('A'),
+            self.unconstructed_buildings_to_expressive_engine('A'),
             player_buildings,
-            self.unconstructed_buildings_to_engine('B'),
+            self.unconstructed_buildings_to_expressive_engine('B'),
             opponent_buildings,
-            self.missiles_to_engine('A'),
-            self.missiles_to_engine('B'),
+            self.missiles_to_expressive_engine('A'),
+            self.missiles_to_expressive_engine('B'),
             settings
+        )
+    }
+
+    fn to_bitwise_engine(&self) -> bitwise_engine::BitwiseGameState {
+        let player_buildings = self.buildings_to_expressive_engine('A');
+        let opponent_buildings = self.buildings_to_expressive_engine('B');
+        bitwise_engine::BitwiseGameState::new(
+            self.player().to_bitwise_engine(),
+            self.opponent().to_bitwise_engine(),
+            bitwise_engine::PlayerBuildings {
+                unconstructed: self.unconstructed_buildings_to_bitwise_engine('A'),
+                buildings: [0,0,0,0],
+                energy_towers: 0,
+                missile_towers: [0,0,0,0],
+                missiles: [(0,0),(0,0),(0,0),(0,0)],
+                tesla_cooldowns: [bitwise_engine::TeslaCooldown {
+                    active: false,
+                    pos: engine::geometry::Point::new(0,0),
+                    cooldown: 0
+                }, bitwise_engine::TeslaCooldown {
+                    active: false,
+                    pos: engine::geometry::Point::new(0,0),
+                    cooldown: 0
+                }]
+            },
+            bitwise_engine::PlayerBuildings {
+                unconstructed: Vec::new(),
+                buildings: [0,0,0,0],
+                energy_towers: 0,
+                missile_towers: [0,0,0,0],
+                missiles: [(0,0),(0,0),(0,0),(0,0)],
+                tesla_cooldowns: [bitwise_engine::TeslaCooldown {
+                    active: false,
+                    pos: engine::geometry::Point::new(0,0),
+                    cooldown: 0
+                }, bitwise_engine::TeslaCooldown {
+                    active: false,
+                    pos: engine::geometry::Point::new(0,0),
+                    cooldown: 0
+                }]
+            }
         )
     }
 
@@ -195,34 +202,45 @@ impl State {
             .expect("Opponent character did not appear in state.json")
     }
 
-    fn unconstructed_buildings_to_engine(&self, player_type: char) -> Vec<expressive_engine::UnconstructedBuilding> {
+    fn unconstructed_buildings_to_expressive_engine(&self, player_type: char) -> Vec<expressive_engine::UnconstructedBuilding> {
         self.game_map.iter()
             .flat_map(|row| row.iter()
                       .flat_map(|cell| cell.buildings.iter()
                                 .filter(|b| b.player_type == player_type && b.construction_time_left >= 0)
-                                .map(|b| b.to_engine_unconstructed())
-                      )
-            )
-            .collect()
-    }
-    
-    fn buildings_to_engine(&self, player_type: char) -> Vec<expressive_engine::Building> {
-        self.game_map.iter()
-            .flat_map(|row| row.iter()
-                      .flat_map(|cell| cell.buildings.iter()
-                                .filter(|b| b.player_type == player_type && b.construction_time_left < 0)
-                                .map(|b| b.to_engine())
+                                .map(|b| b.to_expressive_engine_unconstructed())
                       )
             )
             .collect()
     }
 
-    fn missiles_to_engine(&self, player_type: char) -> Vec<expressive_engine::Missile> {
+    fn unconstructed_buildings_to_bitwise_engine(&self, player_type: char) -> Vec<bitwise_engine::UnconstructedBuilding> {
+        self.game_map.iter()
+            .flat_map(|row| row.iter()
+                      .flat_map(|cell| cell.buildings.iter()
+                                .filter(|b| b.player_type == player_type && b.construction_time_left >= 0)
+                                .map(|b| b.to_bitwise_engine_unconstructed())
+                      )
+            )
+            .collect()
+    }
+    
+    fn buildings_to_expressive_engine(&self, player_type: char) -> Vec<expressive_engine::Building> {
+        self.game_map.iter()
+            .flat_map(|row| row.iter()
+                      .flat_map(|cell| cell.buildings.iter()
+                                .filter(|b| b.player_type == player_type && b.construction_time_left < 0)
+                                .map(|b| b.to_expressive_engine())
+                      )
+            )
+            .collect()
+    }
+
+    fn missiles_to_expressive_engine(&self, player_type: char) -> Vec<expressive_engine::Missile> {
         self.game_map.iter()
             .flat_map(|row| row.iter()
                       .flat_map(|cell| cell.missiles.iter()
                                 .filter(|b| b.player_type == player_type)
-                                .map(|b| b.to_engine())
+                                .map(|b| b.to_expressive_engine())
                       )
             )
             .collect()
@@ -251,10 +269,17 @@ impl Player {
             energy_generated: settings.energy_income + buildings.iter().map(|b| b.energy_generated_per_turn).sum::<u16>()
         }
     }
+    fn to_bitwise_engine(&self) -> engine::Player {
+        engine::Player {
+            energy: self.energy,
+            health: self.health,
+            energy_generated: 5
+        }
+    }
 }
 
 impl BuildingState {
-    fn to_engine(&self) -> expressive_engine::Building {
+    fn to_expressive_engine(&self) -> expressive_engine::Building {
         expressive_engine::Building {
             pos: engine::geometry::Point::new(self.x, self.y),
             health: self.health,
@@ -266,7 +291,7 @@ impl BuildingState {
         }
     }
 
-    fn to_engine_unconstructed(&self) -> expressive_engine::UnconstructedBuilding {
+    fn to_expressive_engine_unconstructed(&self) -> expressive_engine::UnconstructedBuilding {
         expressive_engine::UnconstructedBuilding {
             pos: engine::geometry::Point::new(self.x, self.y),
             health: self.health,
@@ -277,10 +302,27 @@ impl BuildingState {
             energy_generated_per_turn: self.energy_generated_per_turn,
         }
     }
+
+    fn to_bitwise_engine_unconstructed(&self) -> bitwise_engine::UnconstructedBuilding {
+        bitwise_engine::UnconstructedBuilding {
+            pos: engine::geometry::Point::new(self.x, self.y),
+            construction_time_left: self.construction_time_left as u8, // > 0 check already happened
+            building_type: self.convert_building_type()
+        }
+    }
+
+    fn convert_building_type(&self) -> command::BuildingType {
+        match self.building_type.as_ref() {
+            "ATTACK" => command::BuildingType::Attack,
+            "ENERGY" => command::BuildingType::Energy,
+            "TESLA" => command::BuildingType::Tesla,
+            _ => command::BuildingType::Defence,
+        }
+    }
 }
 
 impl MissileState {
-    fn to_engine(&self) -> expressive_engine::Missile {
+    fn to_expressive_engine(&self) -> expressive_engine::Missile {
         expressive_engine::Missile {
             pos: engine::geometry::Point::new(self.x, self.y),
             damage: self.damage,

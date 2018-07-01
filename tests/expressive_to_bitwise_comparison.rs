@@ -21,11 +21,20 @@ const STATE_PATH: &str = "tests/state0.json";
 
 #[test]
 fn reads_into_bitwise_correctly() {
-    let (_, expressive_state) = input::json::read_expressive_state_from_file(STATE_PATH).expect("Failed to load expressive state");
-    let bitwise_state = input::json::read_bitwise_state_from_file(STATE_PATH).expect("Failed to load bitwise state");
-
-    assert_eq!(build_bitwise_from_expressive(&expressive_state), bitwise_state.clone());
+    test_reading_from_replay("tests/after_200", 64);
 }
+
+fn test_reading_from_replay(replay_folder: &str, length: usize) {
+    for i in 0..length {
+        let state_file = format!("{}/Round {:03}/state.json", replay_folder, i);
+
+        let (_, expressive_state) = input::json::read_expressive_state_from_file(&state_file).expect("Failed to load expressive state");
+        let bitwise_state = input::json::read_bitwise_state_from_file(&state_file).expect("Failed to load bitwise state");
+
+        assert_eq!(build_bitwise_from_expressive(&expressive_state), bitwise_state.clone(), "\nFailed on state {}\n", i);
+    }
+}
+
 
 proptest! {
     #[test]

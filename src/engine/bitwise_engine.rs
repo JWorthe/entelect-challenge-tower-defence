@@ -65,6 +65,19 @@ impl GameState for BitwiseGameState {
     fn unoccupied_opponent_cells(&self) -> &[Point] { &EMPTY }
 }
 
+impl BitwiseGameState {
+    pub fn new(
+        player: Player, opponent: Player,
+        player_buildings: PlayerBuildings, opponent_buildings: PlayerBuildings
+    ) -> BitwiseGameState {
+        BitwiseGameState {
+            status: GameStatus::Continue,
+            player, opponent,
+            player_buildings, opponent_buildings
+        }
+    }
+}
+
 impl PlayerBuildings {
     pub fn count_teslas(&self) -> usize {
         self.tesla_cooldowns.iter().filter(|t| t.active).count()
