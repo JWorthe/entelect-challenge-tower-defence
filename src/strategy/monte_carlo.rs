@@ -81,17 +81,16 @@ fn simulate_to_endstate<R: Rng, GS: GameState>(command_score: &mut CommandScore,
 
 fn random_player_move<R: Rng, GS: GameState>(settings: &GameSettings, state: &GS, rng: &mut R) -> Command {
     let all_buildings = sensible_buildings(settings, &state.player(), state.player_has_max_teslas());
-    random_move(&state.unoccupied_player_cells(), &all_buildings, rng)
+    random_move(&all_buildings, rng, state.unoccupied_player_cell_count(), |i| state.location_of_unoccupied_player_cell(i))
 }
 
 fn random_opponent_move<R: Rng, GS: GameState>(settings: &GameSettings, state: &GS, rng: &mut R) -> Command {
     let all_buildings = sensible_buildings(settings, &state.opponent(), state.opponent_has_max_teslas());
-    random_move(&state.unoccupied_opponent_cells(), &all_buildings, rng)
+    random_move(&all_buildings, rng, state.unoccupied_opponent_cell_count(), |i| state.location_of_unoccupied_opponent_cell(i))
 }
 
-fn random_move<R: Rng>(free_positions: &[Point], all_buildings: &[BuildingType], rng: &mut R) -> Command {
-    
-    let building_command_count = free_positions.len()*all_buildings.len();
+fn random_move<R: Rng, F:Fn(usize)->Point>(all_buildings: &[BuildingType], rng: &mut R, free_positions_count: usize, get_point: F) -> Command {
+    let building_command_count = free_positions_count*all_buildings.len();
     let nothing_count = 1;
 
     let number_of_commands = building_command_count + nothing_count;
@@ -102,7 +101,7 @@ fn random_move<R: Rng>(free_positions: &[Point], all_buildings: &[BuildingType],
         Command::Nothing
     } else {
         Command::Build(
-            free_positions[choice_index/all_buildings.len()],
+            get_point(choice_index/all_buildings.len()),
             all_buildings[choice_index%all_buildings.len()]
         )
     }
@@ -163,13 +162,15 @@ impl CommandScore {
     fn init_command_scores<GS: GameState>(settings: &GameSettings, state: &GS) -> Vec<CommandScore> {
         let all_buildings = sensible_buildings(settings, &state.player(), state.player_has_max_teslas());
 
-        let building_command_count = state.unoccupied_player_cells().len()*all_buildings.len();
+        let unoccupied_cells = (0..state.unoccupied_player_cell_count()).map(|i| state.location_of_unoccupied_player_cell(i));
+
+        let building_command_count = unoccupied_cells.len()*all_buildings.len();
         let nothing_count = 1;
         
         let mut commands = Vec::with_capacity(building_command_count + nothing_count);
         commands.push(CommandScore::new(Command::Nothing));
 
-        for &position in state.unoccupied_player_cells() {
+        for position in unoccupied_cells {
             for &building in &all_buildings {
                 commands.push(CommandScore::new(Command::Build(position, building)));
             }

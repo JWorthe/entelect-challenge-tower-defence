@@ -53,8 +53,6 @@ pub struct TeslaCooldown {
 }
 
 
-const EMPTY: [Point; 0] = [];
-
 impl GameState for BitwiseGameState {
     fn simulate(&mut self, settings: &GameSettings, player_command: Command, opponent_command: Command) -> GameStatus {
         BitwiseGameState::perform_command(settings, &mut self.player, &mut self.player_buildings, player_command);      BitwiseGameState::perform_command(settings, &mut self.opponent, &mut self.opponent_buildings, opponent_command);
@@ -82,8 +80,33 @@ impl GameState for BitwiseGameState {
     fn opponent(&self) -> &Player { &self.opponent }
     fn player_has_max_teslas(&self) -> bool { self.player_buildings.count_teslas() >= MAX_TESLAS }
     fn opponent_has_max_teslas(&self) -> bool { self.opponent_buildings.count_teslas() >= MAX_TESLAS }
-    fn unoccupied_player_cells(&self) -> &[Point] { &EMPTY } //TODO
-    fn unoccupied_opponent_cells(&self) -> &[Point] { &EMPTY } //TODO
+
+    fn unoccupied_player_cell_count(&self) -> usize { self.player_buildings.occupied.count_zeros() as usize }
+    fn unoccupied_opponent_cell_count(&self) -> usize { self.opponent_buildings.occupied.count_zeros() as usize }
+    fn location_of_unoccupied_player_cell(&self, i: usize) -> Point  {
+        let mut current = 0;
+        for bit in 0..64 {
+            let is_free = (1 << bit) & self.player_buildings.occupied == 0;
+            if is_free && current == i{
+                return Point::new(bit%SINGLE_MAP_WIDTH, bit/SINGLE_MAP_WIDTH);
+            } else if is_free {
+                current += 1;
+            }
+        }
+        panic!("Didn't find indicated free bit for player");
+    }
+    fn location_of_unoccupied_opponent_cell(&self, i: usize) -> Point {
+        let mut current = 0;
+        for bit in 0..64 {
+            let is_free = (1 << bit) & self.opponent_buildings.occupied == 0;
+            if is_free && current == i{
+                return Point::new((bit%SINGLE_MAP_WIDTH) + SINGLE_MAP_WIDTH, bit/SINGLE_MAP_WIDTH);
+            } else if is_free {
+                current += 1;
+            }
+        }
+        panic!("Didn't find indicated free bit for opponent");
+    }
 }
 
 impl BitwiseGameState {

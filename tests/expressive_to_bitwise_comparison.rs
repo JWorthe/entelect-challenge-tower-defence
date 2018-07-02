@@ -29,7 +29,7 @@ fn test_reading_from_replay(replay_folder: &str, length: usize) {
         let state_file = format!("{}/Round {:03}/state.json", replay_folder, i);
 
         let (_, expressive_state) = input::json::read_expressive_state_from_file(&state_file).expect("Failed to load expressive state");
-        let bitwise_state = input::json::read_bitwise_state_from_file(&state_file).expect("Failed to load bitwise state");
+        let (_, bitwise_state) = input::json::read_bitwise_state_from_file(&state_file).expect("Failed to load bitwise state");
 
         assert_eq!(build_bitwise_from_expressive(&expressive_state), bitwise_state.clone(), "\nFailed on state {}\n", i);
     }
@@ -42,7 +42,7 @@ proptest! {
         let mut rng = XorShiftRng::from_seed(seed);
         
         let (settings, mut expressive_state) = input::json::read_expressive_state_from_file(STATE_PATH).expect("Failed to load expressive state");
-        let mut bitwise_state = input::json::read_bitwise_state_from_file(STATE_PATH).expect("Failed to load bitwise state");
+        let (_, mut bitwise_state) = input::json::read_bitwise_state_from_file(STATE_PATH).expect("Failed to load bitwise state");
 
         let mut expected_status = GameStatus::Continue;
         while expected_status == GameStatus::Continue {
@@ -61,18 +61,17 @@ proptest! {
 }
 
 fn random_player_move<R: Rng, GS: GameState>(settings: &GameSettings, state: &GS, rng: &mut R) -> Command {
-    let all_buildings = sensible_buildings(settings, &state.player(), state.player_has_max_teslas()||true);
-    random_move(&state.unoccupied_player_cells(), &all_buildings, rng)
+    let all_buildings = sensible_buildings(settings, &state.player(), true);
+    random_move(&all_buildings, rng, state.unoccupied_player_cell_count(), |i| state.location_of_unoccupied_player_cell(i))
 }
 
 fn random_opponent_move<R: Rng, GS: GameState>(settings: &GameSettings, state: &GS, rng: &mut R) -> Command {
-    let all_buildings = sensible_buildings(settings, &state.opponent(), state.opponent_has_max_teslas()||true);
-    random_move(&state.unoccupied_opponent_cells(), &all_buildings, rng)
+    let all_buildings = sensible_buildings(settings, &state.opponent(), true);
+    random_move(&all_buildings, rng, state.unoccupied_opponent_cell_count(), |i| state.location_of_unoccupied_opponent_cell(i))
 }
 
-fn random_move<R: Rng>(free_positions: &[Point], all_buildings: &[BuildingType], rng: &mut R) -> Command {
-    
-    let building_command_count = free_positions.len()*all_buildings.len();
+fn random_move<R: Rng, F:Fn(usize)->Point>(all_buildings: &[BuildingType], rng: &mut R, free_positions_count: usize, get_point: F) -> Command {
+    let building_command_count = free_positions_count*all_buildings.len();
     let nothing_count = 1;
 
     let number_of_commands = building_command_count + nothing_count;
@@ -83,7 +82,7 @@ fn random_move<R: Rng>(free_positions: &[Point], all_buildings: &[BuildingType],
         Command::Nothing
     } else {
         Command::Build(
-            free_positions[choice_index/all_buildings.len()],
+            get_point(choice_index/all_buildings.len()),
             all_buildings[choice_index%all_buildings.len()]
         )
     }

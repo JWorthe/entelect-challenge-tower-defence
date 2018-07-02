@@ -19,14 +19,15 @@ pub fn read_expressive_state_from_file(filename: &str) -> Result<(engine::settin
     Ok((engine_settings, engine_state))
 }
 
-pub fn read_bitwise_state_from_file(filename: &str) -> Result<bitwise_engine::BitwiseGameState, Box<Error>> {
+pub fn read_bitwise_state_from_file(filename: &str) -> Result<(engine::settings::GameSettings, bitwise_engine::BitwiseGameState), Box<Error>> {
     let mut file = File::open(filename)?;
     let mut content = String::new();
     file.read_to_string(&mut content)?;
     let state: State = serde_json::from_str(content.as_ref())?;
 
+    let engine_settings = state.to_engine_settings();
     let engine_state = state.to_bitwise_engine();
-    Ok(engine_state)
+    Ok((engine_settings, engine_state))
 }
 
 #[derive(Deserialize)]
