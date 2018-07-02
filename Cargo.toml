@@ -22,3 +22,6 @@ reduced-time = []
 extended-time = []
 
 default = ["energy-cutoff"]
+
+[profile.release]
+debug = true
