@@ -38,7 +38,6 @@ fn test_reading_from_replay(replay_folder: &str, length: usize) {
 
 proptest! {
     #[test]
-    #[ignore]
     fn follows_the_same_random_game_tree(seed in any::<[u32;4]>()) {
         let mut rng = XorShiftRng::from_seed(seed);
         
@@ -49,25 +48,25 @@ proptest! {
         while expected_status == GameStatus::Continue {
             let player_command = random_player_move(&settings, &expressive_state, &mut rng);
             let opponent_command = random_opponent_move(&settings, &expressive_state, &mut rng);
+            println!("Player command: {}", player_command);
+            println!("Opponent command: {}", opponent_command);
 
             expected_status = expressive_state.simulate(&settings, player_command, opponent_command);
             let actual_status = bitwise_state.simulate(&settings, player_command, opponent_command);
 
             assert_eq!(&expected_status, &actual_status);
-            assert_eq!(build_bitwise_from_expressive(&expressive_state), bitwise_state.clone());
+            assert_eq!(build_bitwise_from_expressive(&expressive_state), bitwise_state.sorted());
         }
     }
 }
 
-
-
 fn random_player_move<R: Rng, GS: GameState>(settings: &GameSettings, state: &GS, rng: &mut R) -> Command {
-    let all_buildings = sensible_buildings(settings, &state.player(), state.player_has_max_teslas());
+    let all_buildings = sensible_buildings(settings, &state.player(), state.player_has_max_teslas()||true);
     random_move(&state.unoccupied_player_cells(), &all_buildings, rng)
 }
 
 fn random_opponent_move<R: Rng, GS: GameState>(settings: &GameSettings, state: &GS, rng: &mut R) -> Command {
-    let all_buildings = sensible_buildings(settings, &state.opponent(), state.opponent_has_max_teslas());
+    let all_buildings = sensible_buildings(settings, &state.opponent(), state.opponent_has_max_teslas()||true);
     random_move(&state.unoccupied_opponent_cells(), &all_buildings, rng)
 }
 
