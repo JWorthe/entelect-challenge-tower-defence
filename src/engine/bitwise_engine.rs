@@ -84,29 +84,47 @@ impl GameState for BitwiseGameState {
     fn unoccupied_player_cell_count(&self) -> usize { self.player_buildings.occupied.count_zeros() as usize }
     fn unoccupied_opponent_cell_count(&self) -> usize { self.opponent_buildings.occupied.count_zeros() as usize }
     fn location_of_unoccupied_player_cell(&self, i: usize) -> Point  {
-        let mut current = 0;
-        for bit in 0..64 {
-            let is_free = (1 << bit) & self.player_buildings.occupied == 0;
-            if is_free && current == i{
-                return Point::new(bit%SINGLE_MAP_WIDTH, bit/SINGLE_MAP_WIDTH);
-            } else if is_free {
-                current += 1;
-            }
-        }
-        panic!("Didn't find indicated free bit for player");
+        let bit = find_bit_index_from_rank(self.player_buildings.occupied, i as u64);
+        let point = Point::new(bit%SINGLE_MAP_WIDTH, bit/SINGLE_MAP_WIDTH);
+        debug_assert!(point.to_either_bitfield(SINGLE_MAP_WIDTH) & self.player_buildings.occupied == 0);
+        point
     }
     fn location_of_unoccupied_opponent_cell(&self, i: usize) -> Point {
-        let mut current = 0;
-        for bit in 0..64 {
-            let is_free = (1 << bit) & self.opponent_buildings.occupied == 0;
-            if is_free && current == i{
-                return Point::new((bit%SINGLE_MAP_WIDTH) + SINGLE_MAP_WIDTH, bit/SINGLE_MAP_WIDTH);
-            } else if is_free {
-                current += 1;
-            }
-        }
-        panic!("Didn't find indicated free bit for opponent");
+        let bit = find_bit_index_from_rank(self.opponent_buildings.occupied, i as u64);
+        let point = Point::new(bit%SINGLE_MAP_WIDTH+SINGLE_MAP_WIDTH, bit/SINGLE_MAP_WIDTH);
+        debug_assert!(point.to_either_bitfield(SINGLE_MAP_WIDTH) & self.opponent_buildings.occupied == 0);
+        point
     }
+}
+
+fn find_bit_index_from_rank(occupied: u64, i: u64) -> u8 {
+    // Adapted from https://graphics.stanford.edu/~seander/bithacks.html#SelectPosFromMSBRank
+    let v = !occupied;
+    
+    let mut r = v.count_ones() as u64 - i as u64;
+
+    let a: u64 =  v - ((v >> 1) & !0u64/3);
+    let b: u64 = (a & (!0u64/5)) + ((a >> 2) & (!0u64/5));
+    let c: u64 = (b + (b >> 4)) & (!0u64/0x11);
+    let d: u64 = (c + (c >> 8)) & (!0u64/0x101);
+    let mut t: u64 = (d >> 32) + (d >> 48);
+
+    let mut s: u64 = 64;
+    s -= (t.wrapping_sub(r) & 256) >> 3; r -= t & (t.wrapping_sub(r) >> 8);
+    t  = (d >> (s - 16)) & 0xff;
+    s -= (t.wrapping_sub(r) & 256) >> 4; r -= t & (t.wrapping_sub(r) >> 8);
+    t  = (c >> (s - 8)) & 0xf;
+    s -= (t.wrapping_sub(r) & 256) >> 5; r -= t & (t.wrapping_sub(r) >> 8);
+    t  = (b >> (s - 4)) & 0x7;
+    s -= (t.wrapping_sub(r) & 256) >> 6; r -= t & (t.wrapping_sub(r) >> 8);
+    t  = (a >> (s - 2)) & 0x3;
+    s -= (t.wrapping_sub(r) & 256) >> 7; r -= t & (t.wrapping_sub(r) >> 8);
+    t  = (v >> (s - 1)) & 0x1;
+    s -= (t.wrapping_sub(r) & 256) >> 8;
+    s = 65 - s;
+
+    let bit = 64 - s as u8;
+    bit
 }
 
 impl BitwiseGameState {
@@ -248,7 +266,26 @@ impl BitwiseGameState {
         }
         player_buildings.unconstructed.truncate(buildings_len);
     }
+/*
+    fn fire_teslas(settings: &GameSettings, player: &mut Player, player_buildings: &mut PlayerBuildings, opponent: &mut Player, opponent_buildings: &mut PlayerBuildings) {
+        for tesla in player_buildings.tesla_cooldowns.iter_mut().filter(|t| t.active) {
+            if tesla.cooldown > 0 {
+                tesla.cooldown -= 1;
+            } else if player.energy >= 100 {
+                player.energy -= 100;
+                tesla.cooldown = settings.tesla.weapon_cooldown_period;
 
+                if tesla.pos.x + 1 >= settings.size.x/2 {
+                    opponent.health = opponent.health.saturating_sub(settings.tesla.weapon_damage);
+                }
+                // TODO destroy some buildings?
+                
+            }
+        }
+
+        // TODO Only clean up the tesla cooldowns after this has been called in both directions
+    }
+*/
 
     fn add_left_missiles(player_buildings: &mut PlayerBuildings) {
         let mut missiles = player_buildings.missile_towers[0];
