@@ -146,6 +146,9 @@ impl BitwiseGameState {
                 self.opponent_buildings.missiles[j].1 &= !move_down4;
             }
         }
+
+        self.player_buildings.unconstructed.sort_by_key(|b| b.pos);
+        self.opponent_buildings.unconstructed.sort_by_key(|b| b.pos);
     }
 
     pub fn sorted(&self) -> BitwiseGameState {

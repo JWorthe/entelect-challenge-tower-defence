@@ -46,31 +46,33 @@ proptest! {
 
         let mut expected_status = GameStatus::Continue;
         while expected_status == GameStatus::Continue {
-            let player_command = random_player_move(&settings, &expressive_state, &mut rng);
-            let opponent_command = random_opponent_move(&settings, &expressive_state, &mut rng);
+            let player_command = random_player_move(&settings, &expressive_state, &bitwise_state, &mut rng);
+            let opponent_command = random_opponent_move(&settings, &expressive_state, &bitwise_state, &mut rng);
             println!("Player command: {}", player_command);
             println!("Opponent command: {}", opponent_command);
 
             expected_status = expressive_state.simulate(&settings, player_command, opponent_command);
             let actual_status = bitwise_state.simulate(&settings, player_command, opponent_command);
 
+            expressive_state.sort();
+            
             assert_eq!(&expected_status, &actual_status);
             assert_eq!(build_bitwise_from_expressive(&expressive_state), bitwise_state.sorted());
         }
     }
 }
 
-fn random_player_move<R: Rng, GS: GameState>(settings: &GameSettings, state: &GS, rng: &mut R) -> Command {
-    let all_buildings = sensible_buildings(settings, &state.player(), true);
-    random_move(&all_buildings, rng, state.unoccupied_player_cell_count(), |i| state.location_of_unoccupied_player_cell(i))
+fn random_player_move<R: Rng, GSE: GameState, GSB: GameState>(settings: &GameSettings, expressive_state: &GSE, bitwise_state: &GSB, rng: &mut R) -> Command {
+    let all_buildings = sensible_buildings(settings, &expressive_state.player(), true);
+    random_move(&all_buildings, rng, expressive_state.unoccupied_player_cell_count(), |i| expressive_state.location_of_unoccupied_player_cell(i), |i| bitwise_state.location_of_unoccupied_player_cell(i))
 }
 
-fn random_opponent_move<R: Rng, GS: GameState>(settings: &GameSettings, state: &GS, rng: &mut R) -> Command {
-    let all_buildings = sensible_buildings(settings, &state.opponent(), true);
-    random_move(&all_buildings, rng, state.unoccupied_opponent_cell_count(), |i| state.location_of_unoccupied_opponent_cell(i))
+fn random_opponent_move<R: Rng, GSE: GameState, GSB: GameState>(settings: &GameSettings, expressive_state: &GSE, bitwise_state: &GSB, rng: &mut R) -> Command {
+    let all_buildings = sensible_buildings(settings, &expressive_state.opponent(), true);
+    random_move(&all_buildings, rng, expressive_state.unoccupied_opponent_cell_count(), |i| expressive_state.location_of_unoccupied_opponent_cell(i), |i| bitwise_state.location_of_unoccupied_opponent_cell(i))
 }
 
-fn random_move<R: Rng, F:Fn(usize)->Point>(all_buildings: &[BuildingType], rng: &mut R, free_positions_count: usize, get_point: F) -> Command {
+fn random_move<R: Rng, FE:Fn(usize)->Point, FB:Fn(usize)->Point>(all_buildings: &[BuildingType], rng: &mut R, free_positions_count: usize, get_point_expressive: FE, get_point_bitwise: FB) -> Command {
     let building_command_count = free_positions_count*all_buildings.len();
     let nothing_count = 1;
 
@@ -81,8 +83,11 @@ fn random_move<R: Rng, F:Fn(usize)->Point>(all_buildings: &[BuildingType], rng: 
     if choice_index == number_of_commands - 1 {
         Command::Nothing
     } else {
+        let expressive_point = get_point_expressive(choice_index/all_buildings.len());
+        let bitwise_point = get_point_bitwise(choice_index/all_buildings.len());
+        assert_eq!(expressive_point, bitwise_point);
         Command::Build(
-            get_point(choice_index/all_buildings.len()),
+            expressive_point,
             all_buildings[choice_index%all_buildings.len()]
         )
     }

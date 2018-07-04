@@ -81,6 +81,6 @@ impl PartialOrd for Point {
 }
 impl Ord for Point {
     fn cmp(&self, other: &Point) -> Ordering {
-        self.x.cmp(&other.x).then(self.y.cmp(&other.y))
+        self.y.cmp(&other.y).then(self.x.cmp(&other.x))
     }
 }
