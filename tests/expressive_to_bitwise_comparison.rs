@@ -63,12 +63,14 @@ proptest! {
 }
 
 fn random_player_move<R: Rng, GSE: GameState, GSB: GameState>(settings: &GameSettings, expressive_state: &GSE, bitwise_state: &GSB, rng: &mut R) -> Command {
-    let all_buildings = sensible_buildings(settings, &expressive_state.player(), true);
+    assert_eq!(expressive_state.player_has_max_teslas(), bitwise_state.player_has_max_teslas());
+    let all_buildings = sensible_buildings(settings, &expressive_state.player(), expressive_state.player_has_max_teslas());
     random_move(&all_buildings, rng, expressive_state.unoccupied_player_cell_count(), |i| expressive_state.location_of_unoccupied_player_cell(i), |i| bitwise_state.location_of_unoccupied_player_cell(i))
 }
 
 fn random_opponent_move<R: Rng, GSE: GameState, GSB: GameState>(settings: &GameSettings, expressive_state: &GSE, bitwise_state: &GSB, rng: &mut R) -> Command {
-    let all_buildings = sensible_buildings(settings, &expressive_state.opponent(), true);
+    assert_eq!(expressive_state.player_has_max_teslas(), bitwise_state.player_has_max_teslas());
+    let all_buildings = sensible_buildings(settings, &expressive_state.opponent(), expressive_state.opponent_has_max_teslas());
     random_move(&all_buildings, rng, expressive_state.unoccupied_opponent_cell_count(), |i| expressive_state.location_of_unoccupied_opponent_cell(i), |i| bitwise_state.location_of_unoccupied_opponent_cell(i))
 }
 

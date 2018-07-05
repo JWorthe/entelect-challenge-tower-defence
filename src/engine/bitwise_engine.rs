@@ -60,7 +60,7 @@ impl GameState for BitwiseGameState {
         BitwiseGameState::update_construction(settings, &mut self.player_buildings);
         BitwiseGameState::update_construction(settings, &mut self.opponent_buildings);
         
-        //TODO: Fire the TESLAS!
+        BitwiseGameState::fire_teslas(settings, &mut self.player, &mut self.player_buildings, &mut self.opponent, &mut self.opponent_buildings);
 
         BitwiseGameState::add_left_missiles(&mut self.player_buildings);
         BitwiseGameState::add_right_missiles(&mut self.opponent_buildings);
@@ -167,6 +167,22 @@ impl BitwiseGameState {
 
         self.player_buildings.unconstructed.sort_by_key(|b| b.pos);
         self.opponent_buildings.unconstructed.sort_by_key(|b| b.pos);
+
+        for tesla in self.player_buildings.tesla_cooldowns.iter_mut() {
+            if !tesla.active {
+                tesla.pos = Point::new(0,0);
+                tesla.cooldown = 0;
+            }
+        }
+        for tesla in self.opponent_buildings.tesla_cooldowns.iter_mut() {
+            if !tesla.active {
+                tesla.pos = Point::new(0,0);
+                tesla.cooldown = 0;
+            }
+        }
+
+        self.player_buildings.tesla_cooldowns.sort_by_key(|b| (!b.active, b.pos));
+        self.opponent_buildings.tesla_cooldowns.sort_by_key(|b| (!b.active, b.pos));
     }
 
     pub fn sorted(&self) -> BitwiseGameState {
@@ -249,9 +265,9 @@ impl BitwiseGameState {
                 }
                 if building_type == BuildingType::Tesla {
                     let ref mut tesla_cooldown = if player_buildings.tesla_cooldowns[0].active {
-                        player_buildings.tesla_cooldowns[1]
+                        &mut player_buildings.tesla_cooldowns[1]
                     } else {
-                        player_buildings.tesla_cooldowns[0]
+                        &mut player_buildings.tesla_cooldowns[0]
                     };
                     tesla_cooldown.active = true;
                     tesla_cooldown.pos = pos;
@@ -266,7 +282,7 @@ impl BitwiseGameState {
         }
         player_buildings.unconstructed.truncate(buildings_len);
     }
-/*
+
     fn fire_teslas(settings: &GameSettings, player: &mut Player, player_buildings: &mut PlayerBuildings, opponent: &mut Player, opponent_buildings: &mut PlayerBuildings) {
         for tesla in player_buildings.tesla_cooldowns.iter_mut().filter(|t| t.active) {
             if tesla.cooldown > 0 {
@@ -275,17 +291,54 @@ impl BitwiseGameState {
                 player.energy -= 100;
                 tesla.cooldown = settings.tesla.weapon_cooldown_period;
 
-                if tesla.pos.x + 1 >= settings.size.x/2 {
+                if tesla.pos.x + 1 >= SINGLE_MAP_WIDTH {
                     opponent.health = opponent.health.saturating_sub(settings.tesla.weapon_damage);
                 }
-                // TODO destroy some buildings?
+
+                let missed_cells = ((SINGLE_MAP_WIDTH - tesla.pos.x) as u32).saturating_sub(2);
                 
+                let top_row = if tesla.pos.y == 0 { 0 } else { tesla.pos.y - 1 };
+                let top_row_mask = 255u64 << (top_row * SINGLE_MAP_WIDTH);
+                let mut destroy_mask = top_row_mask.wrapping_shr(missed_cells) & top_row_mask;
+
+                for _ in 0..(if tesla.pos.y == 0 || tesla.pos.y == 7 { 2 } else { 3 }) {
+                    let hits = destroy_mask & opponent_buildings.buildings[0];
+                    destroy_mask &= !hits;
+                    BitwiseGameState::destroy_buildings(opponent_buildings, hits);
+                    destroy_mask = destroy_mask << SINGLE_MAP_WIDTH;
+                }
             }
         }
 
-        // TODO Only clean up the tesla cooldowns after this has been called in both directions
+        for tesla in opponent_buildings.tesla_cooldowns.iter_mut().filter(|t| t.active) {
+            if tesla.cooldown > 0 {
+                tesla.cooldown -= 1;
+            } else if opponent.energy >= 100 {
+                opponent.energy -= 100;
+                tesla.cooldown = settings.tesla.weapon_cooldown_period;
+
+                if tesla.pos.x <= SINGLE_MAP_WIDTH {
+                    player.health = player.health.saturating_sub(settings.tesla.weapon_damage);
+                }
+
+                let missed_cells = ((tesla.pos.x - SINGLE_MAP_WIDTH) as u32).saturating_sub(1);
+                
+                let top_row = if tesla.pos.y == 0 { 0 } else { tesla.pos.y - 1 };
+                let top_row_mask = 255u64 << (top_row * SINGLE_MAP_WIDTH);
+                let mut destroy_mask = top_row_mask.wrapping_shl(missed_cells) & top_row_mask;
+
+                for _ in 0..(if tesla.pos.y == 0 || tesla.pos.y == 7 { 2 } else { 3 }) {
+                    let hits = destroy_mask & player_buildings.buildings[0];
+                    destroy_mask &= !hits;
+                    BitwiseGameState::destroy_buildings(player_buildings, hits);
+                    destroy_mask = destroy_mask << SINGLE_MAP_WIDTH;
+                }                
+            }
+        }
+
+        BitwiseGameState::update_tesla_activity(player_buildings);
+        BitwiseGameState::update_tesla_activity(opponent_buildings);
     }
-*/
 
     fn add_left_missiles(player_buildings: &mut PlayerBuildings) {
         let mut missiles = player_buildings.missile_towers[0];
@@ -339,17 +392,8 @@ impl BitwiseGameState {
                     opponent_buildings.buildings[health_tier] &= !hits;
                 }
 
-                let deconstruct_mask = !hits;
-                opponent_buildings.energy_towers &= deconstruct_mask;
-                for tier in 0..opponent_buildings.missile_towers.len() {
-                    opponent_buildings.missile_towers[tier] &= deconstruct_mask;
-                }
-                for tesla in 0..opponent_buildings.tesla_cooldowns.len() {
-                    if opponent_buildings.tesla_cooldowns[tesla].pos.to_either_bitfield(SINGLE_MAP_WIDTH) & deconstruct_mask == 0 {
-                        opponent_buildings.tesla_cooldowns[tesla].active = false;
-                    }
-                }
-                opponent_buildings.occupied &= deconstruct_mask;
+                BitwiseGameState::destroy_buildings(opponent_buildings, hits);
+                BitwiseGameState::update_tesla_activity(opponent_buildings);
             }
         }
     }
@@ -374,18 +418,28 @@ impl BitwiseGameState {
                     opponent_buildings.buildings[health_tier] &= !hits;
                 }
 
-                let deconstruct_mask = !hits;
-                opponent_buildings.energy_towers &= deconstruct_mask;
-                for tier in 0..opponent_buildings.missile_towers.len() {
-                    opponent_buildings.missile_towers[tier] &= deconstruct_mask;
-                }
-                for tesla in 0..opponent_buildings.tesla_cooldowns.len() {
-                    if opponent_buildings.tesla_cooldowns[tesla].pos.to_either_bitfield(SINGLE_MAP_WIDTH) & deconstruct_mask == 0 {
-                        opponent_buildings.tesla_cooldowns[tesla].active = false;
-                    }
-                }
-                opponent_buildings.occupied &= deconstruct_mask;
+                BitwiseGameState::destroy_buildings(opponent_buildings, hits);
+                BitwiseGameState::update_tesla_activity(opponent_buildings);
             }
+        }
+    }
+
+    fn destroy_buildings(buildings: &mut PlayerBuildings, hit_mask: u64) {
+        let deconstruct_mask = !hit_mask;
+        
+        buildings.energy_towers &= deconstruct_mask;
+        for tier in 0..buildings.missile_towers.len() {
+            buildings.missile_towers[tier] &= deconstruct_mask;
+        }
+        for tier in 0..buildings.buildings.len() {
+            buildings.buildings[tier] &= deconstruct_mask;
+        }
+        buildings.occupied &= deconstruct_mask;
+    }
+
+    fn update_tesla_activity(buildings: &mut PlayerBuildings) {
+        for tesla in buildings.tesla_cooldowns.iter_mut().filter(|t| t.active) {
+            tesla.active = (tesla.pos.to_either_bitfield(SINGLE_MAP_WIDTH) & buildings.occupied) != 0;
         }
     }
     
@@ -411,6 +465,7 @@ impl BitwiseGameState {
 impl PlayerBuildings {
     pub fn count_teslas(&self) -> usize {
         self.tesla_cooldowns.iter().filter(|t| t.active).count()
+            + self.unconstructed.iter().filter(|t| t.building_type == BuildingType::Tesla).count()
     }
 
     pub fn empty() -> PlayerBuildings {

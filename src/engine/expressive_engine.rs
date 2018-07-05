@@ -144,8 +144,8 @@ impl ExpressiveGameState {
             debug_assert!(p.x < size.x && p.y < size.y);
             debug_assert!(player.energy >= blueprint.price);
             debug_assert!(b != BuildingType::Tesla ||
-                          unconstructed_buildings.iter().filter(|b| b.weapon_damage == 20).count() +
-                          buildings.iter().filter(|b| b.weapon_damage == 20).count() < 2);
+                          (unconstructed_buildings.iter().filter(|b| b.weapon_damage == 20).count() +
+                          buildings.iter().filter(|b| b.weapon_damage == 20).count() < 2));
 
             player.energy -= blueprint.price;
             unconstructed_buildings.push(UnconstructedBuilding::new(p, blueprint));
