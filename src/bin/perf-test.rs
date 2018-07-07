@@ -9,7 +9,7 @@ const STATE_PATH: &str = "tests/state0.json";
 use std::process;
 
 fn main() {
-//    expressive();
+    expressive();
     bitwise();
 }
 
