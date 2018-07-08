@@ -118,48 +118,48 @@ fn build_bitwise_from_expressive(expressive: &expressive_engine::ExpressiveGameS
     
     let player_energy = expressive.player_buildings.iter()
         .filter(|b| identify_building_type(b.weapon_damage, b.energy_generated_per_turn) == BuildingType::Energy)
-        .fold(0, |acc, next| acc | next.pos.to_left_bitfield(8));
+        .fold(0, |acc, next| acc | next.pos.to_left_bitfield());
     let opponent_energy = expressive.opponent_buildings.iter()
         .filter(|b| identify_building_type(b.weapon_damage, b.energy_generated_per_turn) == BuildingType::Energy)
-        .fold(0, |acc, next| acc | next.pos.to_right_bitfield(8));
+        .fold(0, |acc, next| acc | next.pos.to_right_bitfield());
 
     let mut player_buildings_iter = (0..4)
         .map(|i| expressive.player_buildings.iter()
              .filter(|b| b.health > i*5)
-             .fold(0, |acc, next| acc | next.pos.to_left_bitfield(8))
+             .fold(0, |acc, next| acc | next.pos.to_left_bitfield())
         );
     let mut opponent_buildings_iter = (0..4)
         .map(|i| expressive.opponent_buildings.iter()
              .filter(|b| b.health > i*5)
-             .fold(0, |acc, next| acc | next.pos.to_right_bitfield(8))
+             .fold(0, |acc, next| acc | next.pos.to_right_bitfield())
         );
 
     let player_occupied = expressive.player_buildings.iter()
-        .fold(0, |acc, next| acc | next.pos.to_left_bitfield(8)) |
+        .fold(0, |acc, next| acc | next.pos.to_left_bitfield()) |
     expressive.player_unconstructed_buildings.iter()
-        .fold(0, |acc, next| acc | next.pos.to_left_bitfield(8));
+        .fold(0, |acc, next| acc | next.pos.to_left_bitfield());
     let opponent_occupied = expressive.opponent_buildings.iter()
-        .fold(0, |acc, next| acc | next.pos.to_right_bitfield(8)) |
+        .fold(0, |acc, next| acc | next.pos.to_right_bitfield()) |
     expressive.opponent_unconstructed_buildings.iter()
-        .fold(0, |acc, next| acc | next.pos.to_right_bitfield(8));
+        .fold(0, |acc, next| acc | next.pos.to_right_bitfield());
 
     let mut player_attack_iter = (0..4)
         .map(|i| expressive.player_buildings.iter()
              .filter(|b| identify_building_type(b.weapon_damage, b.energy_generated_per_turn) == BuildingType::Attack)
              .filter(|b| b.weapon_cooldown_time_left == i)
-             .fold(0, |acc, next| acc | next.pos.to_left_bitfield(8))
+             .fold(0, |acc, next| acc | next.pos.to_left_bitfield())
         );
     let mut opponent_attack_iter = (0..4)
         .map(|i| expressive.opponent_buildings.iter()
              .filter(|b| identify_building_type(b.weapon_damage, b.energy_generated_per_turn) == BuildingType::Attack)
              .filter(|b| b.weapon_cooldown_time_left == i)
-             .fold(0, |acc, next| acc | next.pos.to_right_bitfield(8))
+             .fold(0, |acc, next| acc | next.pos.to_right_bitfield())
         );
 
     let empty_missiles: [(u64,u64);4] = [(0,0),(0,0),(0,0),(0,0)];
     let player_missiles = expressive.player_missiles.iter()
         .fold(empty_missiles, |acc, m| {
-            let (mut left, mut right) = m.pos.to_bitfield(8);
+            let (mut left, mut right) = m.pos.to_bitfield();
             let mut res = acc.clone();
             for mut tier in res.iter_mut() {
                 let setting = (!tier.0 & left, !tier.1 & right);
@@ -172,7 +172,7 @@ fn build_bitwise_from_expressive(expressive: &expressive_engine::ExpressiveGameS
         });
     let opponent_missiles = expressive.opponent_missiles.iter()
         .fold(empty_missiles, |acc, m| {
-            let (mut left, mut right) = m.pos.to_bitfield(8);
+            let (mut left, mut right) = m.pos.to_bitfield();
             let mut res = acc.clone();
             for mut tier in res.iter_mut() {
                 let setting = (!tier.0 & left, !tier.1 & right);

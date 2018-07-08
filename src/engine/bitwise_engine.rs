@@ -1,17 +1,8 @@
 use engine::command::{Command, BuildingType};
 use engine::geometry::Point;
 use engine::settings::{GameSettings};
+use engine::constants::*;
 use engine::{GameStatus, Player, GameState};
-
-const FULL_MAP_WIDTH: u8 = 16;
-const SINGLE_MAP_WIDTH: u8 = FULL_MAP_WIDTH/2;
-const MAX_CONCURRENT_MISSILES: usize = SINGLE_MAP_WIDTH as usize / 2;
-
-const MISSILE_COOLDOWN: usize = 3;
-
-const DEFENCE_HEALTH: usize = 4; // '20' health is 4 hits
-
-const MAX_TESLAS: usize = 2;
 
 const LEFT_COL_MASK: u64 = 0x0101010101010101;
 const RIGHT_COL_MASK: u64 = 0x8080808080808080;
@@ -34,7 +25,7 @@ pub struct PlayerBuildings {
     pub energy_towers: u64,
     pub missile_towers: [u64; MISSILE_COOLDOWN+1],
     
-    pub missiles: [(u64, u64); MAX_CONCURRENT_MISSILES],
+    pub missiles: [(u64, u64); MISSILE_MAX_SINGLE_CELL],
     pub tesla_cooldowns: [TeslaCooldown; MAX_TESLAS]
 }
 
@@ -86,13 +77,13 @@ impl GameState for BitwiseGameState {
     fn location_of_unoccupied_player_cell(&self, i: usize) -> Point  {
         let bit = find_bit_index_from_rank(self.player_buildings.occupied, i as u64);
         let point = Point::new(bit%SINGLE_MAP_WIDTH, bit/SINGLE_MAP_WIDTH);
-        debug_assert!(point.to_either_bitfield(SINGLE_MAP_WIDTH) & self.player_buildings.occupied == 0);
+        debug_assert!(point.to_either_bitfield() & self.player_buildings.occupied == 0);
         point
     }
     fn location_of_unoccupied_opponent_cell(&self, i: usize) -> Point {
         let bit = find_bit_index_from_rank(self.opponent_buildings.occupied, i as u64);
         let point = Point::new(bit%SINGLE_MAP_WIDTH+SINGLE_MAP_WIDTH, bit/SINGLE_MAP_WIDTH);
-        debug_assert!(point.to_either_bitfield(SINGLE_MAP_WIDTH) & self.opponent_buildings.occupied == 0);
+        debug_assert!(point.to_either_bitfield() & self.opponent_buildings.occupied == 0);
         point
     }
 }
@@ -145,8 +136,8 @@ impl BitwiseGameState {
      * engine.
      */
     pub fn sort(&mut self) {
-        for i in 0..MAX_CONCURRENT_MISSILES {
-            for j in i+1..MAX_CONCURRENT_MISSILES {
+        for i in 0..MISSILE_MAX_SINGLE_CELL {
+            for j in i+1..MISSILE_MAX_SINGLE_CELL {
                 let move_down1 = !self.player_buildings.missiles[i].0 & self.player_buildings.missiles[j].0;
                 self.player_buildings.missiles[i].0 |= move_down1;
                 self.player_buildings.missiles[j].0 &= !move_down1;
@@ -196,7 +187,7 @@ impl BitwiseGameState {
             Command::Nothing => {},
             Command::Build(p, b) => {
                 let blueprint = settings.building_settings(b);
-                let bitfield = p.to_either_bitfield(SINGLE_MAP_WIDTH);
+                let bitfield = p.to_either_bitfield();
 
                 // This is used internally. I should not be making
                 // invalid moves!
@@ -216,7 +207,7 @@ impl BitwiseGameState {
             },
             Command::Deconstruct(p) => {
                 let unconstructed_to_remove_index = player_buildings.unconstructed.iter().position(|ref b| b.pos == p);
-                let deconstruct_mask = !(p.to_either_bitfield(SINGLE_MAP_WIDTH) & player_buildings.buildings[0]);
+                let deconstruct_mask = !(p.to_either_bitfield() & player_buildings.buildings[0]);
                 
                 debug_assert!(deconstruct_mask != 0 || unconstructed_to_remove_index.is_some());
                 
@@ -250,7 +241,7 @@ impl BitwiseGameState {
                 let building_type = player_buildings.unconstructed[i].building_type;
                 let blueprint = settings.building_settings(building_type);
                 let pos = player_buildings.unconstructed[i].pos;
-                let bitfield = pos.to_either_bitfield(SINGLE_MAP_WIDTH);
+                let bitfield = pos.to_either_bitfield();
                 
                 for health_tier in 0..4 {
                     if blueprint.health > health_tier*5 {
@@ -372,9 +363,9 @@ impl BitwiseGameState {
     }
 
 
-    fn move_left_and_collide_missiles(settings: &GameSettings, opponent: &mut Player, opponent_buildings: &mut PlayerBuildings, player_missiles: &mut [(u64, u64); MAX_CONCURRENT_MISSILES]) {
-        for _ in 0..settings.attack.weapon_speed {
-            for i in 0..player_missiles.len() {
+    fn move_left_and_collide_missiles(settings: &GameSettings, opponent: &mut Player, opponent_buildings: &mut PlayerBuildings, player_missiles: &mut [(u64, u64); MISSILE_MAX_SINGLE_CELL]) {
+        for _ in 0..MISSILE_SPEED {
+            for i in 0..MISSILE_MAX_SINGLE_CELL {
                 let about_to_hit_opponent = player_missiles[i].0 & LEFT_COL_MASK;
                 let damage = about_to_hit_opponent.count_ones() as u8 * settings.attack.weapon_damage;
                 opponent.health = opponent.health.saturating_sub(damage);
@@ -398,9 +389,9 @@ impl BitwiseGameState {
         }
     }
 
-    fn move_right_and_collide_missiles(settings: &GameSettings, opponent: &mut Player, opponent_buildings: &mut PlayerBuildings, player_missiles: &mut [(u64, u64); MAX_CONCURRENT_MISSILES]) {
-        for _ in 0..settings.attack.weapon_speed {
-            for i in 0..player_missiles.len() {
+    fn move_right_and_collide_missiles(settings: &GameSettings, opponent: &mut Player, opponent_buildings: &mut PlayerBuildings, player_missiles: &mut [(u64, u64); MISSILE_MAX_SINGLE_CELL]) {
+        for _ in 0..MISSILE_SPEED {
+            for i in 0..MISSILE_MAX_SINGLE_CELL {
                 let about_to_hit_opponent = player_missiles[i].1 & RIGHT_COL_MASK;
                 let damage = about_to_hit_opponent.count_ones() as u8 * settings.attack.weapon_damage;
                 opponent.health = opponent.health.saturating_sub(damage);
@@ -439,7 +430,7 @@ impl BitwiseGameState {
 
     fn update_tesla_activity(buildings: &mut PlayerBuildings) {
         for tesla in buildings.tesla_cooldowns.iter_mut().filter(|t| t.active) {
-            tesla.active = (tesla.pos.to_either_bitfield(SINGLE_MAP_WIDTH) & buildings.occupied) != 0;
+            tesla.active = (tesla.pos.to_either_bitfield() & buildings.occupied) != 0;
         }
     }
     

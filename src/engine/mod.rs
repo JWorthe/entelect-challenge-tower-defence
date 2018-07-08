@@ -3,6 +3,7 @@ pub mod geometry;
 pub mod settings;
 pub mod expressive_engine;
 pub mod bitwise_engine;
+pub mod constants;
 
 use self::command::{Command};
 use self::geometry::Point;

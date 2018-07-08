@@ -162,9 +162,9 @@ impl State {
                     let building_type = building.convert_building_type();
                     
                     let (mut engine_player, mut bitwise_buildings, bitfield) = if building.player_type == 'A' {
-                        (&mut player, &mut player_buildings, point.to_left_bitfield(8))
+                        (&mut player, &mut player_buildings, point.to_left_bitfield())
                     } else {
-                        (&mut opponent, &mut opponent_buildings, point.to_right_bitfield(8))
+                        (&mut opponent, &mut opponent_buildings, point.to_right_bitfield())
                     };
 
                     bitwise_buildings.occupied |= bitfield;
@@ -205,7 +205,7 @@ impl State {
                     } else {
                         &mut opponent_buildings
                     };
-                    let (mut left, mut right) = point.to_bitfield(8);
+                    let (mut left, mut right) = point.to_bitfield();
 
                     for mut tier in bitwise_buildings.missiles.iter_mut() {
                         let setting = (!tier.0 & left, !tier.1 & right);
