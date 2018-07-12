@@ -26,7 +26,7 @@ pub struct PlayerBuildings {
     pub missile_towers: [u64; MISSILE_COOLDOWN+1],
     
     pub missiles: [(u64, u64); MISSILE_MAX_SINGLE_CELL],
-    pub tesla_cooldowns: [TeslaCooldown; MAX_TESLAS]
+    pub tesla_cooldowns: [TeslaCooldown; TESLA_MAX]
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -51,16 +51,16 @@ impl GameState for BitwiseGameState {
         BitwiseGameState::update_construction(settings, &mut self.player_buildings);
         BitwiseGameState::update_construction(settings, &mut self.opponent_buildings);
         
-        BitwiseGameState::fire_teslas(settings, &mut self.player, &mut self.player_buildings, &mut self.opponent, &mut self.opponent_buildings);
+        BitwiseGameState::fire_teslas(&mut self.player, &mut self.player_buildings, &mut self.opponent, &mut self.opponent_buildings);
 
         BitwiseGameState::add_left_missiles(&mut self.player_buildings);
         BitwiseGameState::add_right_missiles(&mut self.opponent_buildings);
 
-        BitwiseGameState::move_left_and_collide_missiles(settings, &mut self.player, &mut self.player_buildings, &mut self.opponent_buildings.missiles);
-        BitwiseGameState::move_right_and_collide_missiles(settings, &mut self.opponent, &mut self.opponent_buildings, &mut self.player_buildings.missiles);
+        BitwiseGameState::move_left_and_collide_missiles(&mut self.player, &mut self.player_buildings, &mut self.opponent_buildings.missiles);
+        BitwiseGameState::move_right_and_collide_missiles(&mut self.opponent, &mut self.opponent_buildings, &mut self.player_buildings.missiles);
 
-        BitwiseGameState::add_energy(settings, &mut self.player, &mut self.player_buildings);
-        BitwiseGameState::add_energy(settings, &mut self.opponent, &mut self.opponent_buildings);
+        BitwiseGameState::add_energy(&mut self.player, &mut self.player_buildings);
+        BitwiseGameState::add_energy(&mut self.opponent, &mut self.opponent_buildings);
 
         self.update_status();
         self.status
@@ -69,8 +69,8 @@ impl GameState for BitwiseGameState {
 
     fn player(&self) -> &Player { &self.player }
     fn opponent(&self) -> &Player { &self.opponent }
-    fn player_has_max_teslas(&self) -> bool { self.player_buildings.count_teslas() >= MAX_TESLAS }
-    fn opponent_has_max_teslas(&self) -> bool { self.opponent_buildings.count_teslas() >= MAX_TESLAS }
+    fn player_has_max_teslas(&self) -> bool { self.player_buildings.count_teslas() >= TESLA_MAX }
+    fn opponent_has_max_teslas(&self) -> bool { self.opponent_buildings.count_teslas() >= TESLA_MAX }
 
     fn unoccupied_player_cell_count(&self) -> usize { self.player_buildings.occupied.count_zeros() as usize }
     fn unoccupied_opponent_cell_count(&self) -> usize { self.opponent_buildings.occupied.count_zeros() as usize }
@@ -135,6 +135,7 @@ impl BitwiseGameState {
      * comparable when writing tests, not for actual use in the
      * engine.
      */
+    #[cfg(debug_assertions)]
     pub fn sort(&mut self) {
         for i in 0..MISSILE_MAX_SINGLE_CELL {
             for j in i+1..MISSILE_MAX_SINGLE_CELL {
@@ -176,6 +177,7 @@ impl BitwiseGameState {
         self.opponent_buildings.tesla_cooldowns.sort_by_key(|b| (!b.active, b.pos));
     }
 
+    #[cfg(debug_assertions)]
     pub fn sorted(&self) -> BitwiseGameState {
         let mut res = self.clone();
         res.sort();
@@ -195,7 +197,7 @@ impl BitwiseGameState {
                 debug_assert!(p.x < settings.size.x && p.y < settings.size.y);
                 debug_assert!(player.energy >= blueprint.price);
                 debug_assert!(b != BuildingType::Tesla ||
-                              player_buildings.count_teslas() < MAX_TESLAS);
+                              player_buildings.count_teslas() < TESLA_MAX);
 
                 player.energy -= blueprint.price;
                 player_buildings.unconstructed.push(UnconstructedBuilding {
@@ -215,7 +217,7 @@ impl BitwiseGameState {
                     player_buildings.unconstructed.swap_remove(i);
                 }
                 
-                player.energy += 5;
+                player.energy += DECONSTRUCT_ENERGY;
                 
                 for tier in 0..player_buildings.buildings.len() {
                     player_buildings.buildings[tier] &= deconstruct_mask;
@@ -238,13 +240,15 @@ impl BitwiseGameState {
         let mut buildings_len = player_buildings.unconstructed.len();
         for i in (0..buildings_len).rev() {
             if player_buildings.unconstructed[i].construction_time_left == 0 {
+                //TODO: Avoid blueprint here?
                 let building_type = player_buildings.unconstructed[i].building_type;
                 let blueprint = settings.building_settings(building_type);
+                
                 let pos = player_buildings.unconstructed[i].pos;
                 let bitfield = pos.to_either_bitfield();
                 
-                for health_tier in 0..4 {
-                    if blueprint.health > health_tier*5 {
+                for health_tier in 0..DEFENCE_HEALTH as u8 {
+                    if blueprint.health > health_tier*MISSILE_DAMAGE {
                         player_buildings.buildings[health_tier as usize] |= bitfield;
                     }
                 }
@@ -274,16 +278,23 @@ impl BitwiseGameState {
         player_buildings.unconstructed.truncate(buildings_len);
     }
 
-    fn fire_teslas(settings: &GameSettings, player: &mut Player, player_buildings: &mut PlayerBuildings, opponent: &mut Player, opponent_buildings: &mut PlayerBuildings) {
+    fn fire_teslas(player: &mut Player, player_buildings: &mut PlayerBuildings, opponent: &mut Player, opponent_buildings: &mut PlayerBuildings) {
+
+        #[cfg(debug_assertions)]
+        {
+            player_buildings.tesla_cooldowns.sort_by_key(|b| (!b.active, b.pos));
+            opponent_buildings.tesla_cooldowns.sort_by_key(|b| (!b.active, b.pos));
+        }
+
         for tesla in player_buildings.tesla_cooldowns.iter_mut().filter(|t| t.active) {
             if tesla.cooldown > 0 {
                 tesla.cooldown -= 1;
-            } else if player.energy >= 100 {
-                player.energy -= 100;
-                tesla.cooldown = settings.tesla.weapon_cooldown_period;
+            } else if player.energy >= TESLA_FIRING_ENERGY {
+                player.energy -= TESLA_FIRING_ENERGY;
+                tesla.cooldown = TESLA_COOLDOWN;
 
                 if tesla.pos.x + 1 >= SINGLE_MAP_WIDTH {
-                    opponent.health = opponent.health.saturating_sub(settings.tesla.weapon_damage);
+                    opponent.health = opponent.health.saturating_sub(TESLA_DAMAGE);
                 }
 
                 let missed_cells = ((SINGLE_MAP_WIDTH - tesla.pos.x) as u32).saturating_sub(2);
@@ -292,7 +303,7 @@ impl BitwiseGameState {
                 let top_row_mask = 255u64 << (top_row * SINGLE_MAP_WIDTH);
                 let mut destroy_mask = top_row_mask.wrapping_shr(missed_cells) & top_row_mask;
 
-                for _ in 0..(if tesla.pos.y == 0 || tesla.pos.y == 7 { 2 } else { 3 }) {
+                for _ in 0..(if tesla.pos.y == 0 || tesla.pos.y == MAP_HEIGHT-1 { 2 } else { 3 }) {
                     let hits = destroy_mask & opponent_buildings.buildings[0];
                     destroy_mask &= !hits;
                     BitwiseGameState::destroy_buildings(opponent_buildings, hits);
@@ -304,12 +315,12 @@ impl BitwiseGameState {
         for tesla in opponent_buildings.tesla_cooldowns.iter_mut().filter(|t| t.active) {
             if tesla.cooldown > 0 {
                 tesla.cooldown -= 1;
-            } else if opponent.energy >= 100 {
-                opponent.energy -= 100;
-                tesla.cooldown = settings.tesla.weapon_cooldown_period;
+            } else if opponent.energy >= TESLA_FIRING_ENERGY {
+                opponent.energy -= TESLA_FIRING_ENERGY;
+                tesla.cooldown = TESLA_COOLDOWN;
 
                 if tesla.pos.x <= SINGLE_MAP_WIDTH {
-                    player.health = player.health.saturating_sub(settings.tesla.weapon_damage);
+                    player.health = player.health.saturating_sub(TESLA_DAMAGE);
                 }
 
                 let missed_cells = ((tesla.pos.x - SINGLE_MAP_WIDTH) as u32).saturating_sub(1);
@@ -318,7 +329,7 @@ impl BitwiseGameState {
                 let top_row_mask = 255u64 << (top_row * SINGLE_MAP_WIDTH);
                 let mut destroy_mask = top_row_mask.wrapping_shl(missed_cells) & top_row_mask;
 
-                for _ in 0..(if tesla.pos.y == 0 || tesla.pos.y == 7 { 2 } else { 3 }) {
+                for _ in 0..(if tesla.pos.y == 0 || tesla.pos.y == MAP_HEIGHT-1 { 2 } else { 3 }) {
                     let hits = destroy_mask & player_buildings.buildings[0];
                     destroy_mask &= !hits;
                     BitwiseGameState::destroy_buildings(player_buildings, hits);
@@ -353,6 +364,7 @@ impl BitwiseGameState {
         BitwiseGameState::rotate_missile_towers(player_buildings);
     }
 
+    //TODO: Add a pointer and stop rotating here
     fn rotate_missile_towers(player_buildings: &mut PlayerBuildings) {
         let zero = player_buildings.missile_towers[0];
         for i in 1..player_buildings.missile_towers.len() {
@@ -363,16 +375,17 @@ impl BitwiseGameState {
     }
 
 
-    fn move_left_and_collide_missiles(settings: &GameSettings, opponent: &mut Player, opponent_buildings: &mut PlayerBuildings, player_missiles: &mut [(u64, u64); MISSILE_MAX_SINGLE_CELL]) {
+    //TODO: Can I rearrange my bitfields to make these two functions one thing?
+    fn move_left_and_collide_missiles(opponent: &mut Player, opponent_buildings: &mut PlayerBuildings, player_missiles: &mut [(u64, u64); MISSILE_MAX_SINGLE_CELL]) {
         for _ in 0..MISSILE_SPEED {
             for i in 0..MISSILE_MAX_SINGLE_CELL {
                 let about_to_hit_opponent = player_missiles[i].0 & LEFT_COL_MASK;
-                let damage = about_to_hit_opponent.count_ones() as u8 * settings.attack.weapon_damage;
+                let damage = about_to_hit_opponent.count_ones() as u8 * MISSILE_DAMAGE;
                 opponent.health = opponent.health.saturating_sub(damage);
                 player_missiles[i].0 = (player_missiles[i].0 & !LEFT_COL_MASK) >> 1;
 
                 let swapping_sides = player_missiles[i].1 & LEFT_COL_MASK;
-                player_missiles[i].0 |= swapping_sides << 7;
+                player_missiles[i].0 |= swapping_sides << (SINGLE_MAP_WIDTH-1);
                 player_missiles[i].1 = (player_missiles[i].1 & !LEFT_COL_MASK) >> 1;
 
 
@@ -389,16 +402,16 @@ impl BitwiseGameState {
         }
     }
 
-    fn move_right_and_collide_missiles(settings: &GameSettings, opponent: &mut Player, opponent_buildings: &mut PlayerBuildings, player_missiles: &mut [(u64, u64); MISSILE_MAX_SINGLE_CELL]) {
+    fn move_right_and_collide_missiles(opponent: &mut Player, opponent_buildings: &mut PlayerBuildings, player_missiles: &mut [(u64, u64); MISSILE_MAX_SINGLE_CELL]) {
         for _ in 0..MISSILE_SPEED {
             for i in 0..MISSILE_MAX_SINGLE_CELL {
                 let about_to_hit_opponent = player_missiles[i].1 & RIGHT_COL_MASK;
-                let damage = about_to_hit_opponent.count_ones() as u8 * settings.attack.weapon_damage;
+                let damage = about_to_hit_opponent.count_ones() as u8 * MISSILE_DAMAGE;
                 opponent.health = opponent.health.saturating_sub(damage);
                 player_missiles[i].1 = (player_missiles[i].1 & !RIGHT_COL_MASK) << 1;
 
                 let swapping_sides = player_missiles[i].0 & RIGHT_COL_MASK;
-                player_missiles[i].1 |= swapping_sides >> 7;
+                player_missiles[i].1 |= swapping_sides >> (SINGLE_MAP_WIDTH-1);
                 player_missiles[i].0 = (player_missiles[i].0 & !RIGHT_COL_MASK) << 1;
 
                 
@@ -419,11 +432,11 @@ impl BitwiseGameState {
         let deconstruct_mask = !hit_mask;
         
         buildings.energy_towers &= deconstruct_mask;
-        for tier in 0..buildings.missile_towers.len() {
-            buildings.missile_towers[tier] &= deconstruct_mask;
+        for tier in buildings.missile_towers.iter_mut() {
+            *tier &= deconstruct_mask;
         }
-        for tier in 0..buildings.buildings.len() {
-            buildings.buildings[tier] &= deconstruct_mask;
+        for tier in buildings.buildings.iter_mut() {
+            *tier &= deconstruct_mask;
         }
         buildings.occupied &= deconstruct_mask;
     }
@@ -435,8 +448,8 @@ impl BitwiseGameState {
     }
     
     
-    fn add_energy(settings: &GameSettings, player: &mut Player, player_buildings: &mut PlayerBuildings) {
-        player.energy_generated = settings.energy_income + player_buildings.energy_towers.count_ones() as u16 * settings.energy.energy_generated_per_turn;
+    fn add_energy(player: &mut Player, player_buildings: &mut PlayerBuildings) {
+        player.energy_generated = ENERGY_GENERATED_BASE + player_buildings.energy_towers.count_ones() as u16 * ENERGY_GENERATED_TOWER;
         player.energy += player.energy_generated;
     }
 
@@ -462,12 +475,12 @@ impl PlayerBuildings {
     pub fn empty() -> PlayerBuildings {
         PlayerBuildings {
             unconstructed: Vec::with_capacity(4),
-            buildings: [0; 4],
+            buildings: [0; DEFENCE_HEALTH],
             occupied: 0,
             energy_towers: 0,
-            missile_towers: [0; 4],
-            missiles: [(0,0); 4],
-            tesla_cooldowns: [TeslaCooldown::empty(); 2]
+            missile_towers: [0; MISSILE_COOLDOWN+1],
+            missiles: [(0,0); MISSILE_MAX_SINGLE_CELL],
+            tesla_cooldowns: [TeslaCooldown::empty(); TESLA_MAX]
         }
     }
 }

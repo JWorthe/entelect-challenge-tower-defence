@@ -123,6 +123,7 @@ impl ExpressiveGameState {
      * Sorts the various arrays. Generally not necessary, but useful
      * for tests that check equality between states.
      */
+    #[cfg(debug_assertions)]
     pub fn sort(&mut self) {
         self.player_unconstructed_buildings.sort_by_key(|b| b.pos);
         self.player_buildings.sort_by_key(|b| b.pos);
@@ -190,6 +191,12 @@ impl ExpressiveGameState {
     }
 
     fn fire_teslas(player: &mut Player, player_buildings: &mut Vec<Building>, player_unoccupied_cells: &mut Vec<Point>, opponent: &mut Player, opponent_buildings: &mut Vec<Building>, opponent_unoccupied_cells: &mut Vec<Point>,settings: &GameSettings) {
+        #[cfg(debug_assertions)]
+        {
+            player_buildings.sort_by_key(|b| b.pos);
+            opponent_buildings.sort_by_key(|b| b.pos);
+        }
+        
         for tesla in player_buildings.iter_mut().filter(|b| b.weapon_damage == 20) {
             if tesla.weapon_cooldown_time_left > 0 {
                 tesla.weapon_cooldown_time_left -= 1;
