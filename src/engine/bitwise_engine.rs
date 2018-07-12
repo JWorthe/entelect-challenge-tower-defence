@@ -306,6 +306,7 @@ impl BitwiseGameState {
                 for _ in 0..(if tesla.pos.y == 0 || tesla.pos.y == MAP_HEIGHT-1 { 2 } else { 3 }) {
                     let hits = destroy_mask & opponent_buildings.buildings[0];
                     destroy_mask &= !hits;
+                    //TODO: This can probably be pulled out of the loop
                     BitwiseGameState::destroy_buildings(opponent_buildings, hits);
                     destroy_mask = destroy_mask << SINGLE_MAP_WIDTH;
                 }

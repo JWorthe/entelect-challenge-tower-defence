@@ -7,6 +7,7 @@ use engine;
 use engine::command;
 use engine::expressive_engine;
 use engine::bitwise_engine;
+use engine::constants::*;
 
 pub fn read_expressive_state_from_file(filename: &str) -> Result<(engine::settings::GameSettings, expressive_engine::ExpressiveGameState), Box<Error>> {
     let mut file = File::open(filename)?;
@@ -171,9 +172,9 @@ impl State {
                     if building.construction_time_left >= 0 {
                         bitwise_buildings.unconstructed.push(building.to_bitwise_engine_unconstructed());
                     } else {
-                        for health_tier in 0..4 {
-                            if building.health > health_tier*5 {
-                                bitwise_buildings.buildings[health_tier as usize] |= bitfield;
+                        for health_tier in 0..DEFENCE_HEALTH {
+                            if building.health > health_tier as u8 * MISSILE_DAMAGE {
+                                bitwise_buildings.buildings[health_tier] |= bitfield;
                             }
                         }
                         if building_type == command::BuildingType::Energy {
@@ -181,9 +182,9 @@ impl State {
                             engine_player.energy_generated += building.energy_generated_per_turn;
                         }
                         if building_type == command::BuildingType::Attack {
-                            for cooldown_tier in 0..4 {
-                                if building.weapon_cooldown_time_left == cooldown_tier {
-                                    bitwise_buildings.missile_towers[cooldown_tier as usize] |= bitfield;
+                            for cooldown_tier in 0..MISSILE_COOLDOWN + 1 {
+                                if building.weapon_cooldown_time_left == cooldown_tier as u8 {
+                                    bitwise_buildings.missile_towers[cooldown_tier] |= bitfield;
                                 }
                             }
                         }
@@ -296,7 +297,7 @@ impl Player {
         engine::Player {
             energy: self.energy,
             health: self.health,
-            energy_generated: 5
+            energy_generated: ENERGY_GENERATED_BASE
         }
     }
 }
