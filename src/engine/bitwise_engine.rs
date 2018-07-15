@@ -40,7 +40,8 @@ pub struct UnconstructedBuilding {
 pub struct TeslaCooldown {
     pub active: bool,
     pub pos: Point,
-    pub cooldown: u8
+    pub cooldown: u8,
+    pub age: u16
 }
 
 
@@ -164,12 +165,14 @@ impl BitwiseGameState {
             if !tesla.active {
                 tesla.pos = Point::new(0,0);
                 tesla.cooldown = 0;
+                tesla.age = 0;
             }
         }
         for tesla in self.opponent_buildings.tesla_cooldowns.iter_mut() {
             if !tesla.active {
                 tesla.pos = Point::new(0,0);
                 tesla.cooldown = 0;
+                tesla.age = 0;
             }
         }
 
@@ -267,6 +270,7 @@ impl BitwiseGameState {
                     tesla_cooldown.active = true;
                     tesla_cooldown.pos = pos;
                     tesla_cooldown.cooldown = 0;
+                    tesla_cooldown.age = 0;
                 }
                 
                 buildings_len -= 1;
@@ -279,14 +283,11 @@ impl BitwiseGameState {
     }
 
     fn fire_teslas(player: &mut Player, player_buildings: &mut PlayerBuildings, opponent: &mut Player, opponent_buildings: &mut PlayerBuildings) {
-
-        #[cfg(debug_assertions)]
-        {
-            player_buildings.tesla_cooldowns.sort_by_key(|b| (!b.active, b.pos));
-            opponent_buildings.tesla_cooldowns.sort_by_key(|b| (!b.active, b.pos));
-        }
+        player_buildings.tesla_cooldowns.sort_by(|a, b| b.age.cmp(&a.age));
+        opponent_buildings.tesla_cooldowns.sort_by(|a, b| b.age.cmp(&a.age));
 
         for tesla in player_buildings.tesla_cooldowns.iter_mut().filter(|t| t.active) {
+            tesla.age += 1;
             if tesla.cooldown > 0 {
                 tesla.cooldown -= 1;
             } else if player.energy >= TESLA_FIRING_ENERGY {
@@ -314,6 +315,7 @@ impl BitwiseGameState {
         }
 
         for tesla in opponent_buildings.tesla_cooldowns.iter_mut().filter(|t| t.active) {
+            tesla.age += 1;
             if tesla.cooldown > 0 {
                 tesla.cooldown -= 1;
             } else if opponent.energy >= TESLA_FIRING_ENERGY {
@@ -491,7 +493,8 @@ impl TeslaCooldown {
         TeslaCooldown {
             active: false,
             pos: Point::new(0,0),
-            cooldown: 0
+            cooldown: 0,
+            age: 0
         }
     }
 }

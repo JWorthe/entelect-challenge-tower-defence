@@ -97,7 +97,7 @@ struct GameCell {
 #[serde(rename_all = "camelCase")]
 struct BuildingState {
     health: u8,
-    construction_time_left: i8,
+    construction_time_left: i16,
     //price: u16,
     weapon_damage: u8,
     weapon_speed: u8,
@@ -181,22 +181,23 @@ impl State {
                             bitwise_buildings.energy_towers |= bitfield;
                             engine_player.energy_generated += building.energy_generated_per_turn;
                         }
-                        if building_type == command::BuildingType::Attack {
+                        else if building_type == command::BuildingType::Attack {
                             for cooldown_tier in 0..MISSILE_COOLDOWN + 1 {
                                 if building.weapon_cooldown_time_left == cooldown_tier as u8 {
                                     bitwise_buildings.missile_towers[cooldown_tier] |= bitfield;
                                 }
                             }
                         }
-                        if building_type == command::BuildingType::Tesla {
+                        else if building_type == command::BuildingType::Tesla {
                             let ref mut tesla_cooldown = if bitwise_buildings.tesla_cooldowns[0].active {
-                                bitwise_buildings.tesla_cooldowns[1]
+                                &mut bitwise_buildings.tesla_cooldowns[1]
                             } else {
-                                bitwise_buildings.tesla_cooldowns[0]
+                                &mut bitwise_buildings.tesla_cooldowns[0]
                             };
                             tesla_cooldown.active = true;
                             tesla_cooldown.pos = point;
                             tesla_cooldown.cooldown = building.weapon_cooldown_time_left;
+                            tesla_cooldown.age = building.construction_time_left.abs() as u16;
                         }
                     }
                 }
@@ -312,6 +313,7 @@ impl BuildingState {
             weapon_cooldown_time_left: self.weapon_cooldown_time_left,
             weapon_cooldown_period: self.weapon_cooldown_period,
             energy_generated_per_turn: self.energy_generated_per_turn,
+            age: self.construction_time_left.abs() as u16
         }
     }
 

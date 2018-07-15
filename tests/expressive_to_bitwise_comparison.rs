@@ -188,21 +188,24 @@ fn build_bitwise_from_expressive(expressive: &expressive_engine::ExpressiveGameS
     let null_tesla = bitwise_engine::TeslaCooldown {
         active: false,
         pos: Point::new(0,0),
-        cooldown: 0
+        cooldown: 0,
+        age: 0
     };
     let mut player_tesla_iter = expressive.player_buildings.iter()
         .filter(|b| identify_building_type(b.weapon_damage, b.energy_generated_per_turn) == BuildingType::Tesla)
         .map(|b| bitwise_engine::TeslaCooldown {
             active: true,
             pos: b.pos,
-            cooldown: b.weapon_cooldown_time_left
+            cooldown: b.weapon_cooldown_time_left,
+            age: b.age,
         });
     let mut opponent_tesla_iter = expressive.opponent_buildings.iter()
         .filter(|b| identify_building_type(b.weapon_damage, b.energy_generated_per_turn) == BuildingType::Tesla)
         .map(|b| bitwise_engine::TeslaCooldown {
             active: true,
             pos: b.pos,
-            cooldown: b.weapon_cooldown_time_left
+            cooldown: b.weapon_cooldown_time_left,
+            age: b.age,
         });
     bitwise_engine::BitwiseGameState {
         status: expressive.status,

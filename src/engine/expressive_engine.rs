@@ -38,7 +38,8 @@ pub struct Building {
     pub weapon_speed: u8,
     pub weapon_cooldown_time_left: u8,
     pub weapon_cooldown_period: u8,
-    pub energy_generated_per_turn: u16
+    pub energy_generated_per_turn: u16,
+    pub age: u16
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -193,11 +194,12 @@ impl ExpressiveGameState {
     fn fire_teslas(player: &mut Player, player_buildings: &mut Vec<Building>, player_unoccupied_cells: &mut Vec<Point>, opponent: &mut Player, opponent_buildings: &mut Vec<Building>, opponent_unoccupied_cells: &mut Vec<Point>,settings: &GameSettings) {
         #[cfg(debug_assertions)]
         {
-            player_buildings.sort_by_key(|b| b.pos);
-            opponent_buildings.sort_by_key(|b| b.pos);
+            player_buildings.sort_by(|a, b| b.age.cmp(&a.age).then(a.pos.cmp(&b.pos)));
+            opponent_buildings.sort_by(|a, b| b.age.cmp(&a.age).then(a.pos.cmp(&b.pos)));
         }
         
         for tesla in player_buildings.iter_mut().filter(|b| b.weapon_damage == 20) {
+            tesla.age += 1;
             if tesla.weapon_cooldown_time_left > 0 {
                 tesla.weapon_cooldown_time_left -= 1;
             } else if player.energy >= 100 {
@@ -222,6 +224,7 @@ impl ExpressiveGameState {
         }
 
         for tesla in opponent_buildings.iter_mut().filter(|b| b.weapon_damage == 20) {
+            tesla.age += 1;
             if tesla.weapon_cooldown_time_left > 0 {
                 tesla.weapon_cooldown_time_left -= 1;
             } else if opponent.energy >= 100 {
@@ -382,7 +385,8 @@ impl UnconstructedBuilding {
             weapon_speed: self.weapon_speed,
             weapon_cooldown_time_left: 0,
             weapon_cooldown_period: self.weapon_cooldown_period,
-            energy_generated_per_turn: self.energy_generated_per_turn
+            energy_generated_per_turn: self.energy_generated_per_turn,
+            age: 0
         }
     }
 }
@@ -396,7 +400,8 @@ impl Building {
             weapon_speed: blueprint.weapon_speed,
             weapon_cooldown_time_left: 0,
             weapon_cooldown_period: blueprint.weapon_cooldown_period,
-            energy_generated_per_turn: blueprint.energy_generated_per_turn
+            energy_generated_per_turn: blueprint.energy_generated_per_turn,
+            age: 0
         }
     }
     

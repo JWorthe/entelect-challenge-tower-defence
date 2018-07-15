@@ -30,6 +30,8 @@ fn test_from_replay(replay_folder: &str, length: usize) {
         state.simulate(&settings, player, opponent);
         state.sort();
         expected_state.sort();
+
+        println!("State {}: {:?}", i+1, state);
         assert_eq!(state, expected_state, "\nFailed on state {}\n", i+1);
     }
 }
