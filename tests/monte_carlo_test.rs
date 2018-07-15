@@ -14,6 +14,8 @@ fn it_does_a_normal_turn_successfully() {
         Ok(ok) => ok,
         Err(error) => panic!("Error while parsing JSON file: {}", error)
     };
-    let max_time = Duration::milliseconds(1950);
+    let max_time = Duration::milliseconds(200);
     strategy::monte_carlo::choose_move(&settings, &state, &start_time, max_time);
+
+    assert!(start_time.to(PreciseTime::now()) < max_time + Duration::milliseconds(10))
 }
