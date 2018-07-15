@@ -45,6 +45,8 @@ proptest! {
         let (settings, mut expressive_state) = input::json::read_expressive_state_from_file(STATE_PATH).expect("Failed to load expressive state");
         let (_, mut bitwise_state) = input::json::read_bitwise_state_from_file(STATE_PATH).expect("Failed to load bitwise state");
 
+        expressive_state.sort();
+
         let mut expected_status = GameStatus::Continue;
         while expected_status == GameStatus::Continue {
             let player_command = random_player_move(&settings, &expressive_state, &bitwise_state, &mut rng);
@@ -176,11 +178,11 @@ fn build_bitwise_from_expressive(expressive: &expressive_engine::ExpressiveGameS
             let (mut left, mut right) = m.pos.to_bitfield();
             let mut res = acc.clone();
             for mut tier in res.iter_mut() {
-                let setting = (!tier.0 & left, !tier.1 & right);
+                let setting = (!tier.0 & right, !tier.1 & left);
                 tier.0 |= setting.0;
                 tier.1 |= setting.1;
-                left &= !setting.0;
-                right &= !setting.1;
+                right &= !setting.0;
+                left &= !setting.1;
             }
             res
         });

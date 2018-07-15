@@ -34,14 +34,30 @@ impl Point {
         self.x = self.x.wrapping_add(1);
     }
 
-    pub fn to_bitfield(&self) -> (u64, u64) {
-        if self.x >= SINGLE_MAP_WIDTH {
-            let index = self.y * SINGLE_MAP_WIDTH + self.x - SINGLE_MAP_WIDTH;
-            (0, 1 << index)
+    pub fn flip_x(&self) -> Point {
+        let flipped_x = if self.x >= SINGLE_MAP_WIDTH {
+            FULL_MAP_WIDTH - self.x - 1
         } else {
-            let index = self.y * SINGLE_MAP_WIDTH + self.x;
-            (1 << index, 0)
-        }
+            self.x
+        };
+        Point::new(flipped_x, self.y)
+    }
+}
+
+impl Point {
+    /**
+     * # Bitfields
+     * 
+     * 0,0 is the top left point.
+     * >> (towards 0) moves bits towards the player that owns that side
+     * << (towards max) moves bits towards the opponent
+     * This involves mirroring the x dimension for the opponent's side
+     */
+
+
+    //TODO: Clean up the left vs right bitfield nonsense here, get rid of some branches
+    pub fn to_bitfield(&self) -> (u64, u64) {
+        (self.to_left_bitfield(), self.to_right_bitfield())
     }
     
     pub fn to_left_bitfield(&self) -> u64 {
@@ -57,19 +73,13 @@ impl Point {
         if self.x < SINGLE_MAP_WIDTH {
             0
         } else {
-            let index = self.y * SINGLE_MAP_WIDTH + self.x - SINGLE_MAP_WIDTH;
+            let index = self.y * SINGLE_MAP_WIDTH + FULL_MAP_WIDTH - self.x - 1;
             1 << index
         }
     }
 
     pub fn to_either_bitfield(&self) -> u64 {
-        if self.x >= SINGLE_MAP_WIDTH {
-            let index = self.y * SINGLE_MAP_WIDTH + self.x - SINGLE_MAP_WIDTH;
-            1 << index
-        } else {
-            let index = self.y * SINGLE_MAP_WIDTH + self.x;
-            1 << index
-        }
+        self.to_left_bitfield() | self.to_right_bitfield()
     }
 }
 
@@ -83,6 +93,8 @@ impl PartialOrd for Point {
 }
 impl Ord for Point {
     fn cmp(&self, other: &Point) -> Ordering {
-        self.y.cmp(&other.y).then(self.x.cmp(&other.x))
+        let a = self.flip_x();
+        let b = other.flip_x();
+        a.y.cmp(&b.y).then(a.x.cmp(&b.x))
     }
 }

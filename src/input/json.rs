@@ -202,12 +202,12 @@ impl State {
                     }
                 }
                 for missile in &cell.missiles {
-                    let mut bitwise_buildings = if missile.player_type == 'A' {
-                        &mut player_buildings
+                    let bitfields = point.to_bitfield();
+                    let (mut bitwise_buildings, mut left, mut right) = if missile.player_type == 'A' {
+                        (&mut player_buildings, bitfields.0, bitfields.1)
                     } else {
-                        &mut opponent_buildings
+                        (&mut opponent_buildings, bitfields.1, bitfields.0)
                     };
-                    let (mut left, mut right) = point.to_bitfield();
 
                     for mut tier in bitwise_buildings.missiles.iter_mut() {
                         let setting = (!tier.0 & left, !tier.1 & right);

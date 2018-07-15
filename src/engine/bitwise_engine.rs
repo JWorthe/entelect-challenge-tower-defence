@@ -47,18 +47,19 @@ pub struct TeslaCooldown {
 
 impl GameState for BitwiseGameState {
     fn simulate(&mut self, settings: &GameSettings, player_command: Command, opponent_command: Command) -> GameStatus {
-        BitwiseGameState::perform_command(settings, &mut self.player, &mut self.player_buildings, player_command);      BitwiseGameState::perform_command(settings, &mut self.opponent, &mut self.opponent_buildings, opponent_command);
+        BitwiseGameState::perform_command(settings, &mut self.player, &mut self.player_buildings, player_command);
+        BitwiseGameState::perform_command(settings, &mut self.opponent, &mut self.opponent_buildings, opponent_command);
 
         BitwiseGameState::update_construction(settings, &mut self.player_buildings);
         BitwiseGameState::update_construction(settings, &mut self.opponent_buildings);
         
         BitwiseGameState::fire_teslas(&mut self.player, &mut self.player_buildings, &mut self.opponent, &mut self.opponent_buildings);
 
-        BitwiseGameState::add_left_missiles(&mut self.player_buildings);
-        BitwiseGameState::add_right_missiles(&mut self.opponent_buildings);
+        BitwiseGameState::add_missiles(&mut self.player_buildings);
+        BitwiseGameState::add_missiles(&mut self.opponent_buildings);
 
-        BitwiseGameState::move_left_and_collide_missiles(&mut self.player, &mut self.player_buildings, &mut self.opponent_buildings.missiles);
-        BitwiseGameState::move_right_and_collide_missiles(&mut self.opponent, &mut self.opponent_buildings, &mut self.player_buildings.missiles);
+        BitwiseGameState::move_and_collide_missiles(&mut self.player, &mut self.player_buildings, &mut self.opponent_buildings.missiles);
+        BitwiseGameState::move_and_collide_missiles(&mut self.opponent, &mut self.opponent_buildings, &mut self.player_buildings.missiles);
 
         BitwiseGameState::add_energy(&mut self.player, &mut self.player_buildings);
         BitwiseGameState::add_energy(&mut self.opponent, &mut self.opponent_buildings);
@@ -66,7 +67,6 @@ impl GameState for BitwiseGameState {
         self.update_status();
         self.status
     }
-
 
     fn player(&self) -> &Player { &self.player }
     fn opponent(&self) -> &Player { &self.opponent }
@@ -83,7 +83,7 @@ impl GameState for BitwiseGameState {
     }
     fn location_of_unoccupied_opponent_cell(&self, i: usize) -> Point {
         let bit = find_bit_index_from_rank(self.opponent_buildings.occupied, i as u64);
-        let point = Point::new(bit%SINGLE_MAP_WIDTH+SINGLE_MAP_WIDTH, bit/SINGLE_MAP_WIDTH);
+        let point = Point::new(FULL_MAP_WIDTH - bit%SINGLE_MAP_WIDTH - 1, bit/SINGLE_MAP_WIDTH);
         debug_assert!(point.to_either_bitfield() & self.opponent_buildings.occupied == 0);
         point
     }
@@ -283,9 +283,15 @@ impl BitwiseGameState {
     }
 
     fn fire_teslas(player: &mut Player, player_buildings: &mut PlayerBuildings, opponent: &mut Player, opponent_buildings: &mut PlayerBuildings) {
-        player_buildings.tesla_cooldowns.sort_by(|a, b| b.age.cmp(&a.age));
-        opponent_buildings.tesla_cooldowns.sort_by(|a, b| b.age.cmp(&a.age));
+        BitwiseGameState::fire_single_players_teslas_without_cleanup(player, player_buildings, opponent, opponent_buildings);
+        BitwiseGameState::fire_single_players_teslas_without_cleanup(opponent, opponent_buildings, player, player_buildings);
 
+        BitwiseGameState::update_tesla_activity(player_buildings);
+        BitwiseGameState::update_tesla_activity(opponent_buildings);
+    }
+
+    fn fire_single_players_teslas_without_cleanup(player: &mut Player, player_buildings: &mut PlayerBuildings, opponent: &mut Player, opponent_buildings: &mut PlayerBuildings) {
+        player_buildings.tesla_cooldowns.sort_by(|a, b| b.age.cmp(&a.age));
         for tesla in player_buildings.tesla_cooldowns.iter_mut().filter(|t| t.active) {
             tesla.age += 1;
             if tesla.cooldown > 0 {
@@ -294,15 +300,17 @@ impl BitwiseGameState {
                 player.energy -= TESLA_FIRING_ENERGY;
                 tesla.cooldown = TESLA_COOLDOWN;
 
-                if tesla.pos.x + 1 >= SINGLE_MAP_WIDTH {
+                let flipped_pos = tesla.pos.flip_x();
+
+                if flipped_pos.x >= SINGLE_MAP_WIDTH - 1 {
                     opponent.health = opponent.health.saturating_sub(TESLA_DAMAGE);
                 }
 
-                let missed_cells = ((SINGLE_MAP_WIDTH - tesla.pos.x) as u32).saturating_sub(2);
+                let missed_cells = ((SINGLE_MAP_WIDTH - flipped_pos.x) as u32).saturating_sub(2);
                 
                 let top_row = if tesla.pos.y == 0 { 0 } else { tesla.pos.y - 1 };
                 let top_row_mask = 255u64 << (top_row * SINGLE_MAP_WIDTH);
-                let mut destroy_mask = top_row_mask.wrapping_shr(missed_cells) & top_row_mask;
+                let mut destroy_mask = top_row_mask.wrapping_shl(missed_cells) & top_row_mask;
 
                 for _ in 0..(if tesla.pos.y == 0 || tesla.pos.y == MAP_HEIGHT-1 { 2 } else { 3 }) {
                     let hits = destroy_mask & opponent_buildings.buildings[0];
@@ -313,54 +321,13 @@ impl BitwiseGameState {
                 }
             }
         }
-
-        for tesla in opponent_buildings.tesla_cooldowns.iter_mut().filter(|t| t.active) {
-            tesla.age += 1;
-            if tesla.cooldown > 0 {
-                tesla.cooldown -= 1;
-            } else if opponent.energy >= TESLA_FIRING_ENERGY {
-                opponent.energy -= TESLA_FIRING_ENERGY;
-                tesla.cooldown = TESLA_COOLDOWN;
-
-                if tesla.pos.x <= SINGLE_MAP_WIDTH {
-                    player.health = player.health.saturating_sub(TESLA_DAMAGE);
-                }
-
-                let missed_cells = ((tesla.pos.x - SINGLE_MAP_WIDTH) as u32).saturating_sub(1);
-                
-                let top_row = if tesla.pos.y == 0 { 0 } else { tesla.pos.y - 1 };
-                let top_row_mask = 255u64 << (top_row * SINGLE_MAP_WIDTH);
-                let mut destroy_mask = top_row_mask.wrapping_shl(missed_cells) & top_row_mask;
-
-                for _ in 0..(if tesla.pos.y == 0 || tesla.pos.y == MAP_HEIGHT-1 { 2 } else { 3 }) {
-                    let hits = destroy_mask & player_buildings.buildings[0];
-                    destroy_mask &= !hits;
-                    BitwiseGameState::destroy_buildings(player_buildings, hits);
-                    destroy_mask = destroy_mask << SINGLE_MAP_WIDTH;
-                }                
-            }
-        }
-
-        BitwiseGameState::update_tesla_activity(player_buildings);
-        BitwiseGameState::update_tesla_activity(opponent_buildings);
     }
 
-    fn add_left_missiles(player_buildings: &mut PlayerBuildings) {
+    fn add_missiles(player_buildings: &mut PlayerBuildings) {
         let mut missiles = player_buildings.missile_towers[0];
         for mut tier in player_buildings.missiles.iter_mut() {
             let setting = !tier.0 & missiles;
             tier.0 |= setting;
-            missiles &= !setting;
-        }
-
-        BitwiseGameState::rotate_missile_towers(player_buildings);
-    }
-
-    fn add_right_missiles(player_buildings: &mut PlayerBuildings) {
-        let mut missiles = player_buildings.missile_towers[0];
-        for mut tier in player_buildings.missiles.iter_mut() {
-            let setting = !tier.1 & missiles;
-            tier.1 |= setting;
             missiles &= !setting;
         }
 
@@ -378,46 +345,18 @@ impl BitwiseGameState {
     }
 
 
-    //TODO: Can I rearrange my bitfields to make these two functions one thing?
-    fn move_left_and_collide_missiles(opponent: &mut Player, opponent_buildings: &mut PlayerBuildings, player_missiles: &mut [(u64, u64); MISSILE_MAX_SINGLE_CELL]) {
+    fn move_and_collide_missiles(opponent: &mut Player, opponent_buildings: &mut PlayerBuildings, player_missiles: &mut [(u64, u64); MISSILE_MAX_SINGLE_CELL]) {
         for _ in 0..MISSILE_SPEED {
             for i in 0..MISSILE_MAX_SINGLE_CELL {
-                let about_to_hit_opponent = player_missiles[i].0 & LEFT_COL_MASK;
+                let about_to_hit_opponent = player_missiles[i].1 & LEFT_COL_MASK;
                 let damage = about_to_hit_opponent.count_ones() as u8 * MISSILE_DAMAGE;
                 opponent.health = opponent.health.saturating_sub(damage);
-                player_missiles[i].0 = (player_missiles[i].0 & !LEFT_COL_MASK) >> 1;
-
-                let swapping_sides = player_missiles[i].1 & LEFT_COL_MASK;
-                player_missiles[i].0 |= swapping_sides << (SINGLE_MAP_WIDTH-1);
                 player_missiles[i].1 = (player_missiles[i].1 & !LEFT_COL_MASK) >> 1;
 
-
-                let mut hits = 0;
-                for health_tier in (0..DEFENCE_HEALTH).rev() {
-                    hits = opponent_buildings.buildings[health_tier] & player_missiles[i].0;
-                    player_missiles[i].0 &= !hits;
-                    opponent_buildings.buildings[health_tier] &= !hits;
-                }
-
-                BitwiseGameState::destroy_buildings(opponent_buildings, hits);
-                BitwiseGameState::update_tesla_activity(opponent_buildings);
-            }
-        }
-    }
-
-    fn move_right_and_collide_missiles(opponent: &mut Player, opponent_buildings: &mut PlayerBuildings, player_missiles: &mut [(u64, u64); MISSILE_MAX_SINGLE_CELL]) {
-        for _ in 0..MISSILE_SPEED {
-            for i in 0..MISSILE_MAX_SINGLE_CELL {
-                let about_to_hit_opponent = player_missiles[i].1 & RIGHT_COL_MASK;
-                let damage = about_to_hit_opponent.count_ones() as u8 * MISSILE_DAMAGE;
-                opponent.health = opponent.health.saturating_sub(damage);
-                player_missiles[i].1 = (player_missiles[i].1 & !RIGHT_COL_MASK) << 1;
-
                 let swapping_sides = player_missiles[i].0 & RIGHT_COL_MASK;
-                player_missiles[i].1 |= swapping_sides >> (SINGLE_MAP_WIDTH-1);
+                player_missiles[i].1 |= swapping_sides;
                 player_missiles[i].0 = (player_missiles[i].0 & !RIGHT_COL_MASK) << 1;
 
-                
                 let mut hits = 0;
                 for health_tier in (0..DEFENCE_HEALTH).rev() {
                     hits = opponent_buildings.buildings[health_tier] & player_missiles[i].1;
