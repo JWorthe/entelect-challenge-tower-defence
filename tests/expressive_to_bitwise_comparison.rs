@@ -146,20 +146,20 @@ fn build_bitwise_from_expressive(expressive: &expressive_engine::ExpressiveGameS
     expressive.opponent_unconstructed_buildings.iter()
         .fold(0, |acc, next| acc | next.pos.to_right_bitfield());
 
-    let mut player_attack_iter = (0..MISSILE_COOLDOWN as u8 + 1)
+    let mut player_attack_iter = (0..MISSILE_COOLDOWN_STATES as u8)
         .map(|i| expressive.player_buildings.iter()
              .filter(|b| identify_building_type(b.weapon_damage, b.energy_generated_per_turn) == BuildingType::Attack)
              .filter(|b| b.weapon_cooldown_time_left == i)
              .fold(0, |acc, next| acc | next.pos.to_left_bitfield())
         );
-    let mut opponent_attack_iter = (0..MISSILE_COOLDOWN as u8 + 1)
+    let mut opponent_attack_iter = (0..MISSILE_COOLDOWN_STATES as u8)
         .map(|i| expressive.opponent_buildings.iter()
              .filter(|b| identify_building_type(b.weapon_damage, b.energy_generated_per_turn) == BuildingType::Attack)
              .filter(|b| b.weapon_cooldown_time_left == i)
              .fold(0, |acc, next| acc | next.pos.to_right_bitfield())
         );
 
-    let empty_missiles: [(u64,u64);MISSILE_COOLDOWN+1] = [(0,0),(0,0),(0,0),(0,0)];
+    let empty_missiles: [(u64,u64);MISSILE_COOLDOWN_STATES] = [(0,0),(0,0),(0,0),(0,0)];
     let player_missiles = expressive.player_missiles.iter()
         .fold(empty_missiles, |acc, m| {
             let (mut left, mut right) = m.pos.to_bitfield();
@@ -219,6 +219,7 @@ fn build_bitwise_from_expressive(expressive: &expressive_engine::ExpressiveGameS
             occupied: player_occupied,
             energy_towers: player_energy,
             missile_towers: [player_attack_iter.next().unwrap(), player_attack_iter.next().unwrap(), player_attack_iter.next().unwrap(), player_attack_iter.next().unwrap()],
+            firing_tower: 0,
             missiles: player_missiles,
             tesla_cooldowns: [player_tesla_iter.next().unwrap_or(null_tesla.clone()),
                               player_tesla_iter.next().unwrap_or(null_tesla.clone())]
@@ -229,6 +230,7 @@ fn build_bitwise_from_expressive(expressive: &expressive_engine::ExpressiveGameS
             occupied: opponent_occupied,
             energy_towers: opponent_energy,
             missile_towers: [opponent_attack_iter.next().unwrap(), opponent_attack_iter.next().unwrap(), opponent_attack_iter.next().unwrap(), opponent_attack_iter.next().unwrap()],
+            firing_tower: 0,
             missiles: opponent_missiles,
             tesla_cooldowns: [opponent_tesla_iter.next().unwrap_or(null_tesla.clone()),
                               opponent_tesla_iter.next().unwrap_or(null_tesla.clone())]

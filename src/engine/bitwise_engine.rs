@@ -23,7 +23,9 @@ pub struct PlayerBuildings {
     pub occupied: u64,
     
     pub energy_towers: u64,
-    pub missile_towers: [u64; MISSILE_COOLDOWN+1],
+
+    pub missile_towers: [u64; MISSILE_COOLDOWN_STATES],
+    pub firing_tower: usize,
     
     pub missiles: [(u64, u64); MISSILE_MAX_SINGLE_CELL],
     pub tesla_cooldowns: [TeslaCooldown; TESLA_MAX]
@@ -178,6 +180,26 @@ impl BitwiseGameState {
 
         self.player_buildings.tesla_cooldowns.sort_by_key(|b| (!b.active, b.pos));
         self.opponent_buildings.tesla_cooldowns.sort_by_key(|b| (!b.active, b.pos));
+
+
+        while self.player_buildings.firing_tower > 0 {
+            self.player_buildings.firing_tower -= 1;
+            let zero = self.player_buildings.missile_towers[0];
+            for i in 1..self.player_buildings.missile_towers.len() {
+                self.player_buildings.missile_towers[i-1] = self.player_buildings.missile_towers[i];
+            }
+            let end = self.player_buildings.missile_towers.len()-1;
+            self.player_buildings.missile_towers[end] = zero;
+        }
+        while self.opponent_buildings.firing_tower > 0 {
+            self.opponent_buildings.firing_tower -= 1;
+            let zero = self.opponent_buildings.missile_towers[0];
+            for i in 1..self.opponent_buildings.missile_towers.len() {
+                self.opponent_buildings.missile_towers[i-1] = self.opponent_buildings.missile_towers[i];
+            }
+            let end = self.opponent_buildings.missile_towers.len()-1;
+            self.opponent_buildings.missile_towers[end] = zero;
+        }
     }
 
     #[cfg(debug_assertions)]
@@ -256,7 +278,7 @@ impl BitwiseGameState {
                     player_buildings.energy_towers |= bitfield;
                 }
                 if building_type == BuildingType::Attack {
-                    player_buildings.missile_towers[0] |= bitfield;
+                    player_buildings.missile_towers[player_buildings.firing_tower] |= bitfield;
                 }
                 if building_type == BuildingType::Tesla {
                     let ref mut tesla_cooldown = if player_buildings.tesla_cooldowns[0].active {
@@ -321,26 +343,14 @@ impl BitwiseGameState {
     }
 
     fn add_missiles(player_buildings: &mut PlayerBuildings) {
-        let mut missiles = player_buildings.missile_towers[0];
+        let mut missiles = player_buildings.missile_towers[player_buildings.firing_tower];
         for mut tier in player_buildings.missiles.iter_mut() {
             let setting = !tier.0 & missiles;
             tier.0 |= setting;
             missiles &= !setting;
         }
-
-        BitwiseGameState::rotate_missile_towers(player_buildings);
+        player_buildings.firing_tower = (player_buildings.firing_tower + 1) % MISSILE_COOLDOWN_STATES;
     }
-
-    //TODO: Add a pointer and stop rotating here
-    fn rotate_missile_towers(player_buildings: &mut PlayerBuildings) {
-        let zero = player_buildings.missile_towers[0];
-        for i in 1..player_buildings.missile_towers.len() {
-            player_buildings.missile_towers[i-1] = player_buildings.missile_towers[i];
-        }
-        let end = player_buildings.missile_towers.len()-1;
-        player_buildings.missile_towers[end] = zero;
-    }
-
 
     fn move_and_collide_missiles(opponent: &mut Player, opponent_buildings: &mut PlayerBuildings, player_missiles: &mut [(u64, u64); MISSILE_MAX_SINGLE_CELL]) {
         for _ in 0..MISSILE_SPEED {
@@ -417,7 +427,8 @@ impl PlayerBuildings {
             buildings: [0; DEFENCE_HEALTH],
             occupied: 0,
             energy_towers: 0,
-            missile_towers: [0; MISSILE_COOLDOWN+1],
+            missile_towers: [0; MISSILE_COOLDOWN_STATES],
+            firing_tower: 0,
             missiles: [(0,0); MISSILE_MAX_SINGLE_CELL],
             tesla_cooldowns: [TeslaCooldown::empty(); TESLA_MAX]
         }

@@ -3,6 +3,7 @@ pub const SINGLE_MAP_WIDTH: u8 = FULL_MAP_WIDTH/2;
 pub const MAP_HEIGHT: u8 = 8;
 
 pub const MISSILE_COOLDOWN: usize = 3;
+pub const MISSILE_COOLDOWN_STATES: usize = MISSILE_COOLDOWN+1;
 pub const MISSILE_SPEED: usize = 2;
 pub const MISSILE_MAX_SINGLE_CELL: usize = SINGLE_MAP_WIDTH as usize / MISSILE_SPEED;
 pub const MISSILE_DAMAGE: u8 = 5;
