@@ -55,7 +55,6 @@ impl Point {
      */
 
 
-    //TODO: Clean up the left vs right bitfield nonsense here, get rid of some branches
     pub fn to_bitfield(&self) -> (u64, u64) {
         (self.to_left_bitfield(), self.to_right_bitfield())
     }

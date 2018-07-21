@@ -322,7 +322,7 @@ impl BitwiseGameState {
     }
 
     fn fire_single_players_teslas_without_cleanup(player: &mut Player, player_buildings: &mut PlayerBuildings, opponent: &mut Player, opponent_buildings: &mut PlayerBuildings) {
-        player_buildings.tesla_cooldowns.sort_by(|a, b| b.age.cmp(&a.age));
+        player_buildings.tesla_cooldowns.sort_unstable_by(|a, b| b.age.cmp(&a.age));
         for tesla in player_buildings.tesla_cooldowns.iter_mut().filter(|t| t.active) {
             tesla.age += 1;
             if tesla.cooldown > 0 {
