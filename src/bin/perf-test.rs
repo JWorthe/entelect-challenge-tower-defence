@@ -3,6 +3,7 @@ extern crate time;
 use time::{PreciseTime, Duration};
 
 use zombot::*;
+use zombot::engine::constants::*;
 
 const STATE_PATH: &str = "tests/state0.json";
 
@@ -22,7 +23,7 @@ fn _expressive() {
             process::exit(1);
         }
     };
-    let max_time = Duration::milliseconds(1950);
+    let max_time = Duration::milliseconds(MAX_TIME_MILLIS);
     strategy::monte_carlo::choose_move(&settings, &state, &start_time, max_time);
 }
 
@@ -36,6 +37,6 @@ fn bitwise() {
             process::exit(1);
         }
     };
-    let max_time = Duration::milliseconds(1950);
+    let max_time = Duration::milliseconds(MAX_TIME_MILLIS);
     strategy::monte_carlo::choose_move(&settings, &state, &start_time, max_time);
 }

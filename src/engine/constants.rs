@@ -27,3 +27,14 @@ pub const ENERGY_PRICE: u16 = 20;
 pub const ENERGY_CONSTRUCTION_TIME: u8 = 1;
 
 pub const DECONSTRUCT_ENERGY: u16 = 5;
+
+
+#[cfg(not(feature = "reduced-time"))]
+#[cfg(not(feature = "extended-time"))]
+pub const MAX_TIME_MILLIS: i64 = 1950;
+
+#[cfg(feature = "reduced-time")]
+pub const MAX_TIME_MILLIS: i64 = 950;
+
+#[cfg(feature = "extended-time")]
+pub const MAX_TIME_MILLIS: i64 = 19950;

@@ -8,7 +8,7 @@ bench:
 	cargo run --release --features "benchmarking" --bin perf-test
 
 profile:
-	cargo build --release --features "benchmarking single-threaded"
+	cargo build --release --features "benchmarking single-threaded extended-time"
 	mkdir -p target/profile
 	perf record -g target/release/perf-test
 	perf script > target/profile/out.perf

@@ -3,6 +3,7 @@ extern crate time;
 use time::{PreciseTime, Duration};
 
 use zombot::*;
+use zombot::engine::constants::*;
 use zombot::engine::command::Command;
 
 use std::error::Error;
@@ -16,16 +17,7 @@ use std::io::prelude::*;
 use std::process;
 
 fn choose_move<GS:engine::GameState>(settings: &engine::settings::GameSettings, state: &GS, start_time: &PreciseTime) -> Command {
-    #[cfg(not(feature = "reduced-time"))]
-    #[cfg(not(feature = "extended-time"))]
-    let max_time = Duration::milliseconds(1950);
-    
-    #[cfg(feature = "reduced-time")]
-    let max_time = Duration::milliseconds(950);
-
-    #[cfg(feature = "extended-time")]
-    let max_time = Duration::milliseconds(19950);
-    
+    let max_time = Duration::milliseconds(MAX_TIME_MILLIS);
     strategy::monte_carlo::choose_move(settings, state, start_time, max_time)
 }
 
