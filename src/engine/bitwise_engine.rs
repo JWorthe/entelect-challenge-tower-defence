@@ -50,8 +50,8 @@ impl GameState for BitwiseGameState {
         BitwiseGameState::perform_command(settings, &mut self.player, &mut self.player_buildings, player_command);
         BitwiseGameState::perform_command(settings, &mut self.opponent, &mut self.opponent_buildings, opponent_command);
 
-        BitwiseGameState::update_construction(settings, &mut self.player_buildings);
-        BitwiseGameState::update_construction(settings, &mut self.opponent_buildings);
+        BitwiseGameState::update_construction(&mut self.player_buildings);
+        BitwiseGameState::update_construction(&mut self.opponent_buildings);
         
         BitwiseGameState::fire_teslas(&mut self.player, &mut self.player_buildings, &mut self.opponent, &mut self.opponent_buildings);
 
@@ -239,21 +239,18 @@ impl BitwiseGameState {
         }
     }
 
-    fn update_construction(settings: &GameSettings, player_buildings: &mut PlayerBuildings) {
+    fn update_construction(player_buildings: &mut PlayerBuildings) {
         let mut buildings_len = player_buildings.unconstructed.len();
         for i in (0..buildings_len).rev() {
             if player_buildings.unconstructed[i].construction_time_left == 0 {
-                //TODO: Avoid blueprint here?
                 let building_type = player_buildings.unconstructed[i].building_type;
-                let blueprint = settings.building_settings(building_type);
+                let health = if building_type == BuildingType::Defence { DEFENCE_HEALTH } else { 1 };
                 
                 let pos = player_buildings.unconstructed[i].pos;
                 let bitfield = pos.to_either_bitfield();
                 
-                for health_tier in 0..DEFENCE_HEALTH as u8 {
-                    if blueprint.health > health_tier*MISSILE_DAMAGE {
-                        player_buildings.buildings[health_tier as usize] |= bitfield;
-                    }
+                for health_tier in 0..health {
+                    player_buildings.buildings[health_tier] |= bitfield;
                 }
                 if building_type == BuildingType::Energy {
                     player_buildings.energy_towers |= bitfield;
