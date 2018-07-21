@@ -369,14 +369,13 @@ impl BitwiseGameState {
         let mut damaging = 0;
         for _ in 0..MISSILE_SPEED {
             for i in 0..MISSILE_MAX_SINGLE_CELL {
-                let about_to_hit_opponent = player_missiles[i].1 & LEFT_COL_MASK;
-                damaging = damaging << 1;
-                damaging |= about_to_hit_opponent;
-                player_missiles[i].1 = (player_missiles[i].1 & !LEFT_COL_MASK) >> 1;
-
                 let swapping_sides = player_missiles[i].0 & RIGHT_COL_MASK;
-                player_missiles[i].1 |= swapping_sides;
+                let about_to_hit_opponent = player_missiles[i].1 & LEFT_COL_MASK;
+
                 player_missiles[i].0 = (player_missiles[i].0 & !RIGHT_COL_MASK) << 1;
+                player_missiles[i].1 = ((player_missiles[i].1 & !LEFT_COL_MASK) >> 1) | swapping_sides;
+
+                damaging = (damaging << 1) | about_to_hit_opponent;
 
                 let mut hits = 0;
                 for health_tier in (0..DEFENCE_HEALTH).rev() {
