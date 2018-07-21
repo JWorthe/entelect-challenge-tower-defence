@@ -48,9 +48,9 @@ pub struct TeslaCooldown {
 
 
 impl GameState for BitwiseGameState {
-    fn simulate(&mut self, settings: &GameSettings, player_command: Command, opponent_command: Command) -> GameStatus {
-        BitwiseGameState::perform_command(settings, &mut self.player, &mut self.player_buildings, player_command);
-        BitwiseGameState::perform_command(settings, &mut self.opponent, &mut self.opponent_buildings, opponent_command);
+    fn simulate(&mut self, _settings: &GameSettings, player_command: Command, opponent_command: Command) -> GameStatus {
+        BitwiseGameState::perform_command(&mut self.player, &mut self.player_buildings, player_command);
+        BitwiseGameState::perform_command(&mut self.opponent, &mut self.opponent_buildings, opponent_command);
 
         BitwiseGameState::update_construction(&mut self.player_buildings);
         BitwiseGameState::update_construction(&mut self.opponent_buildings);
@@ -209,25 +209,37 @@ impl BitwiseGameState {
         res
     }
 
-    fn perform_command(settings: &GameSettings, player: &mut Player, player_buildings: &mut PlayerBuildings, command: Command) {
+    fn perform_command(player: &mut Player, player_buildings: &mut PlayerBuildings, command: Command) {
         match command {
             Command::Nothing => {},
             Command::Build(p, b) => {
-                let blueprint = settings.building_settings(b);
                 let bitfield = p.to_either_bitfield();
+
+                let price = match b {
+                    BuildingType::Attack => MISSILE_PRICE,
+                    BuildingType::Defence => DEFENCE_PRICE,
+                    BuildingType::Energy => ENERGY_PRICE,
+                    BuildingType::Tesla => TESLA_PRICE,
+                };
+                let construction_time = match b {
+                    BuildingType::Attack => MISSILE_CONSTRUCTION_TIME,
+                    BuildingType::Defence => DEFENCE_CONSTRUCTION_TIME,
+                    BuildingType::Energy => ENERGY_CONSTRUCTION_TIME,
+                    BuildingType::Tesla => TESLA_CONSTRUCTION_TIME,
+                };
 
                 // This is used internally. I should not be making
                 // invalid moves!
                 debug_assert!(player_buildings.buildings[0] & bitfield == 0);
-                debug_assert!(p.x < settings.size.x && p.y < settings.size.y);
-                debug_assert!(player.energy >= blueprint.price);
+                debug_assert!(p.x < FULL_MAP_WIDTH && p.y < MAP_HEIGHT);
+                debug_assert!(player.energy >= price);
                 debug_assert!(b != BuildingType::Tesla ||
                               player_buildings.count_teslas() < TESLA_MAX);
 
-                player.energy -= blueprint.price;
+                player.energy -= price;
                 player_buildings.unconstructed.push(UnconstructedBuilding {
                     pos: p,
-                    construction_time_left: blueprint.construction_time,
+                    construction_time_left: construction_time,
                     building_type: b
                 });
                 player_buildings.occupied |= bitfield;
