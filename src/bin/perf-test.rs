@@ -9,11 +9,10 @@ const STATE_PATH: &str = "tests/state0.json";
 use std::process;
 
 fn main() {
-    expressive();
     bitwise();
 }
 
-fn expressive() {
+fn _expressive() {
     println!("Running expressive engine");
     let start_time = PreciseTime::now();
     let (settings, state) = match input::json::read_expressive_state_from_file(STATE_PATH) {
