@@ -18,7 +18,7 @@ profile:
 clean:
 	cargo clean
 
-submission.zip:
+submission.zip: bot.json Cargo.lock Cargo.toml src
 	zip -r9 submission.zip bot.json Cargo.lock Cargo.toml src
 
 .PHONY: build test bench profile clean
