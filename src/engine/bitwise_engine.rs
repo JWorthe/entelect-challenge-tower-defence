@@ -365,6 +365,7 @@ impl BitwiseGameState {
     }
 
     fn move_and_collide_missiles(opponent: &mut Player, opponent_buildings: &mut PlayerBuildings, player_missiles: &mut [(u64, u64); MISSILE_MAX_SINGLE_CELL]) {
+        let mut destroyed = 0;
         for _ in 0..MISSILE_SPEED {
             for i in 0..MISSILE_MAX_SINGLE_CELL {
                 let about_to_hit_opponent = player_missiles[i].1 & LEFT_COL_MASK;
@@ -382,11 +383,11 @@ impl BitwiseGameState {
                     player_missiles[i].1 &= !hits;
                     opponent_buildings.buildings[health_tier] &= !hits;
                 }
-
-                BitwiseGameState::destroy_buildings(opponent_buildings, hits);
-                BitwiseGameState::update_tesla_activity(opponent_buildings);
+                destroyed |= hits;
             }
         }
+        BitwiseGameState::destroy_buildings(opponent_buildings, destroyed);
+        BitwiseGameState::update_tesla_activity(opponent_buildings);
     }
 
     fn destroy_buildings(buildings: &mut PlayerBuildings, hit_mask: u64) {
