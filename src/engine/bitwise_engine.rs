@@ -403,8 +403,8 @@ impl BitwiseGameState {
     }
 
     fn update_tesla_activity(buildings: &mut PlayerBuildings) {
-        for tesla in buildings.tesla_cooldowns.iter_mut().filter(|t| t.active) {
-            tesla.active = (tesla.pos.to_either_bitfield() & buildings.occupied) != 0;
+        for i in 0..TESLA_MAX {
+            buildings.tesla_cooldowns[i].active = buildings.tesla_cooldowns[i].active && (buildings.tesla_cooldowns[i].pos.to_either_bitfield() & buildings.occupied) != 0;
         }
     }
     
