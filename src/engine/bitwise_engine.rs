@@ -309,13 +309,13 @@ impl BitwiseGameState {
                 let top_row_mask = 255u64 << (top_row * SINGLE_MAP_WIDTH);
                 let mut destroy_mask = top_row_mask.wrapping_shl(missed_cells) & top_row_mask;
 
+                let mut hits = 0;
                 for _ in 0..(if tesla.pos.y == 0 || tesla.pos.y == MAP_HEIGHT-1 { 2 } else { 3 }) {
-                    let hits = destroy_mask & opponent_buildings.buildings[0];
+                    hits |= destroy_mask & opponent_buildings.buildings[0];
                     destroy_mask &= !hits;
-                    //TODO: This can probably be pulled out of the loop
-                    BitwiseGameState::destroy_buildings(opponent_buildings, hits);
                     destroy_mask = destroy_mask << SINGLE_MAP_WIDTH;
                 }
+                BitwiseGameState::destroy_buildings(opponent_buildings, hits);
             }
         }
     }
