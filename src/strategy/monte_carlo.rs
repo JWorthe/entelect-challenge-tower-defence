@@ -17,10 +17,7 @@ use rayon::prelude::*;
 
 pub fn choose_move<GS: GameState>(settings: &GameSettings, state: &GS, start_time: &PreciseTime, max_time: Duration) -> Command {
     let mut command_scores = CommandScore::init_command_scores(settings, state);
-
-    simulate_options_to_timeout(&mut command_scores, settings, state, start_time, max_time);
-
-    let command = command_scores.iter().max_by_key(|&c| c.win_ratio());
+    let command = simulate_options_to_timeout(&mut command_scores, settings, state, start_time, max_time);
 
     #[cfg(feature = "benchmarking")]
     {
@@ -35,29 +32,33 @@ pub fn choose_move<GS: GameState>(settings: &GameSettings, state: &GS, start_tim
 }
 
 #[cfg(not(feature = "discard-poor-performers"))]
-fn simulate_options_to_timeout<GS: GameState>(command_scores: &mut Vec<CommandScore>, settings: &GameSettings, state: &GS, start_time: &PreciseTime, max_time: Duration) {
+fn simulate_options_to_timeout<'a, GS: GameState>(command_scores: &'a mut Vec<CommandScore>, settings: &GameSettings, state: &GS, start_time: &PreciseTime, max_time: Duration) -> Option<&'a CommandScore> {
     loop {
         simulate_all_options_once(command_scores, settings, state);
         if start_time.to(PreciseTime::now()) > max_time {
             break;
         }
     }
+    command_scores.iter().max_by_key(|&c| c.win_ratio())
 }
 
 #[cfg(feature = "discard-poor-performers")]
-fn simulate_options_to_timeout<GS: GameState>(command_scores: &mut Vec<CommandScore>, settings: &GameSettings, state: &GS, start_time: &PreciseTime, max_time: Duration) {
+fn simulate_options_to_timeout<'a, GS: GameState>(command_scores: &'a mut Vec<CommandScore>, settings: &GameSettings, state: &GS, start_time: &PreciseTime, max_time: Duration) -> Option<&'a CommandScore> {
+    use std::cmp;
+    
     let maxes = [max_time / 4, max_time / 2, max_time * 3 / 4, max_time];
-    for &max in maxes.iter() {
+    for (i, &max) in maxes.iter().enumerate() {
+        let new_length = cmp::max(20, command_scores.len() / (2usize.pow(i as u32)));
+        let active_scores = &mut command_scores[0..new_length];
         loop {
-            simulate_all_options_once(command_scores, settings, state);
+            simulate_all_options_once(active_scores, settings, state);
             if start_time.to(PreciseTime::now()) > max {
                 break;
             }
         }
-        command_scores.sort_unstable_by_key(|c| -c.win_ratio());
-        let new_length = command_scores.len()/2;
-        command_scores.truncate(new_length);
+        active_scores.sort_unstable_by_key(|c| -c.win_ratio());
     }
+    command_scores.first()
 }
 
 #[cfg(feature = "single-threaded")]
