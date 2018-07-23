@@ -22,7 +22,7 @@ reduced-time = []
 extended-time = []
 discard-poor-performers = []
 
-default = ["energy-cutoff"]
+default = ["energy-cutoff", "discard-poor-performers"]
 
 [profile.release]
 debug = true
