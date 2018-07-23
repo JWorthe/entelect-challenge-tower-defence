@@ -5,7 +5,6 @@ use time::PreciseTime;
 use zombot::*;
 use zombot::engine::*;
 use zombot::engine::settings::*;
-use zombot::engine::constants::*;
 use zombot::engine::command::*;
 
 const STATE_PATH: &str = "tests/state0.json";
@@ -86,6 +85,9 @@ fn walk_states<GS: GameState>(settings: &GameSettings, state: &GS, depth: u32) {
     let status = after_move.simulate(settings, player_move, opponent_move);
     if status == GameStatus::Continue {
         walk_states(settings, &after_move, depth+1);
+    }
+    if depth < 10 {
+        print!(".");
     }
 }
 

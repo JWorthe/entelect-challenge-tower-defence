@@ -17,28 +17,8 @@ use rayon::prelude::*;
 
 pub fn choose_move<GS: GameState>(settings: &GameSettings, state: &GS, start_time: &PreciseTime, max_time: Duration) -> Command {
     let mut command_scores = CommandScore::init_command_scores(settings, state);
-    
-    loop {
-        #[cfg(feature = "single-threaded")]
-        {
-            command_scores.iter_mut()
-                .for_each(|score| {
-                    let mut rng = XorShiftRng::from_seed(score.next_seed);
-                    simulate_to_endstate(score, settings, state, &mut rng);
-                });
-        }
-        #[cfg(not(feature = "single-threaded"))]
-        {
-            command_scores.par_iter_mut()
-                .for_each(|score| {
-                    let mut rng = XorShiftRng::from_seed(score.next_seed);
-                    simulate_to_endstate(score, settings, state, &mut rng);
-                });
-        }
-        if start_time.to(PreciseTime::now()) > max_time {
-            break;
-        }
-    }
+
+    simulate_options_to_timeout(&mut command_scores, settings, state, start_time, max_time);
 
     let command = command_scores.iter().max_by_key(|&c| c.win_ratio());
 
@@ -52,6 +32,50 @@ pub fn choose_move<GS: GameState>(settings: &GameSettings, state: &GS, start_tim
         Some(command) => command.command,
         _ => Command::Nothing
     }
+}
+
+#[cfg(not(feature = "discard-poor-performers"))]
+fn simulate_options_to_timeout<GS: GameState>(command_scores: &mut Vec<CommandScore>, settings: &GameSettings, state: &GS, start_time: &PreciseTime, max_time: Duration) {
+    loop {
+        simulate_all_options_once(command_scores, settings, state);
+        if start_time.to(PreciseTime::now()) > max_time {
+            break;
+        }
+    }
+}
+
+#[cfg(feature = "discard-poor-performers")]
+fn simulate_options_to_timeout<GS: GameState>(command_scores: &mut Vec<CommandScore>, settings: &GameSettings, state: &GS, start_time: &PreciseTime, max_time: Duration) {
+    let maxes = [max_time / 4, max_time / 2, max_time * 3 / 4, max_time];
+    for &max in maxes.iter() {
+        loop {
+            simulate_all_options_once(command_scores, settings, state);
+            if start_time.to(PreciseTime::now()) > max {
+                break;
+            }
+        }
+        command_scores.sort_unstable_by_key(|c| -c.win_ratio());
+        let new_length = command_scores.len()/2;
+        command_scores.truncate(new_length);
+    }
+}
+
+#[cfg(feature = "single-threaded")]
+fn simulate_all_options_once<GS: GameState>(command_scores: &mut[CommandScore], settings: &GameSettings, state: &GS) {
+    command_scores.iter_mut()
+        .for_each(|score| {
+            let mut rng = XorShiftRng::from_seed(score.next_seed);
+            simulate_to_endstate(score, settings, state, &mut rng);
+        });
+}
+
+#[cfg(not(feature = "single-threaded"))]
+fn simulate_all_options_once<GS: GameState>(command_scores: &mut[CommandScore], settings: &GameSettings, state: &GS) {
+    command_scores.par_iter_mut()
+        .for_each(|score| {
+            let mut rng = XorShiftRng::from_seed(score.next_seed);
+            simulate_to_endstate(score, settings, state, &mut rng);
+        });
 }
 
 fn simulate_to_endstate<R: Rng, GS: GameState>(command_score: &mut CommandScore, settings: &GameSettings, state: &GS, rng: &mut R) {

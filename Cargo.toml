@@ -20,6 +20,7 @@ single-threaded = []
 energy-cutoff = []
 reduced-time = []
 extended-time = []
+discard-poor-performers = []
 
 default = ["energy-cutoff"]
 
