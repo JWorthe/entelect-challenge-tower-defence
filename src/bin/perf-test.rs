@@ -16,7 +16,7 @@ fn main() {
 fn bitwise() {
     println!("Running bitwise engine");
     let start_time = PreciseTime::now();
-    let (settings, state) = match input::json::read_bitwise_state_from_file(STATE_PATH) {
+    let state = match input::json::read_bitwise_state_from_file(STATE_PATH) {
         Ok(ok) => ok,
         Err(error) => {
             println!("Error while parsing JSON file: {}", error);
@@ -24,5 +24,5 @@ fn bitwise() {
         }
     };
     let max_time = Duration::milliseconds(MAX_TIME_MILLIS);
-    strategy::monte_carlo::choose_move(&settings, &state, &start_time, max_time);
+    strategy::monte_carlo::choose_move(&state, &start_time, max_time);
 }

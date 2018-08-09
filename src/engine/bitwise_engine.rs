@@ -1,11 +1,17 @@
 use engine::command::{Command, BuildingType};
 use engine::geometry::Point;
-use engine::settings::{GameSettings};
 use engine::constants::*;
-use engine::{GameStatus, Player, GameState};
+use engine::status::GameStatus;
 
 const LEFT_COL_MASK: u64 = 0x0101010101010101;
 const RIGHT_COL_MASK: u64 = 0x8080808080808080;
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Player {
+    pub energy: u16,
+    pub health: u8,
+    pub energy_generated: u16,
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BitwiseGameState {
@@ -48,8 +54,8 @@ pub struct TeslaCooldown {
 }
 
 
-impl GameState for BitwiseGameState {
-    fn simulate(&mut self, _settings: &GameSettings, player_command: Command, opponent_command: Command) -> GameStatus {
+impl BitwiseGameState {
+    pub fn simulate(&mut self, player_command: Command, opponent_command: Command) -> GameStatus {
         BitwiseGameState::perform_command(&mut self.player, &mut self.player_buildings, player_command);
         BitwiseGameState::perform_command(&mut self.opponent, &mut self.opponent_buildings, opponent_command);
 
@@ -71,20 +77,20 @@ impl GameState for BitwiseGameState {
         self.status
     }
 
-    fn player(&self) -> &Player { &self.player }
-    fn opponent(&self) -> &Player { &self.opponent }
-    fn player_has_max_teslas(&self) -> bool { self.player_buildings.count_teslas() >= TESLA_MAX }
-    fn opponent_has_max_teslas(&self) -> bool { self.opponent_buildings.count_teslas() >= TESLA_MAX }
+    pub fn player(&self) -> &Player { &self.player }
+    pub fn opponent(&self) -> &Player { &self.opponent }
+    pub fn player_has_max_teslas(&self) -> bool { self.player_buildings.count_teslas() >= TESLA_MAX }
+    pub fn opponent_has_max_teslas(&self) -> bool { self.opponent_buildings.count_teslas() >= TESLA_MAX }
 
-    fn unoccupied_player_cell_count(&self) -> usize { self.player_buildings.occupied.count_zeros() as usize }
-    fn unoccupied_opponent_cell_count(&self) -> usize { self.opponent_buildings.occupied.count_zeros() as usize }
-    fn location_of_unoccupied_player_cell(&self, i: usize) -> Point  {
+    pub fn unoccupied_player_cell_count(&self) -> usize { self.player_buildings.occupied.count_zeros() as usize }
+    pub fn unoccupied_opponent_cell_count(&self) -> usize { self.opponent_buildings.occupied.count_zeros() as usize }
+    pub fn location_of_unoccupied_player_cell(&self, i: usize) -> Point  {
         let bit = find_bit_index_from_rank(self.player_buildings.occupied, i as u64);
         let point = Point::new(bit%SINGLE_MAP_WIDTH, bit/SINGLE_MAP_WIDTH);
         debug_assert!(point.to_either_bitfield() & self.player_buildings.occupied == 0);
         point
     }
-    fn location_of_unoccupied_opponent_cell(&self, i: usize) -> Point {
+    pub fn location_of_unoccupied_opponent_cell(&self, i: usize) -> Point {
         let bit = find_bit_index_from_rank(self.opponent_buildings.occupied, i as u64);
         let point = Point::new(FULL_MAP_WIDTH - bit%SINGLE_MAP_WIDTH - 1, bit/SINGLE_MAP_WIDTH);
         debug_assert!(point.to_either_bitfield() & self.opponent_buildings.occupied == 0);

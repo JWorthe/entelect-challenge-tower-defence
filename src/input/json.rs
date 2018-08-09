@@ -8,57 +8,21 @@ use engine::command;
 use engine::bitwise_engine;
 use engine::constants::*;
 
-pub fn read_bitwise_state_from_file(filename: &str) -> Result<(engine::settings::GameSettings, bitwise_engine::BitwiseGameState), Box<Error>> {
+pub fn read_bitwise_state_from_file(filename: &str) -> Result<bitwise_engine::BitwiseGameState, Box<Error>> {
     let mut file = File::open(filename)?;
     let mut content = String::new();
     file.read_to_string(&mut content)?;
     let state: State = serde_json::from_str(content.as_ref())?;
 
-    let engine_settings = state.to_engine_settings();
     let engine_state = state.to_bitwise_engine();
-    Ok((engine_settings, engine_state))
+    Ok(engine_state)
 }
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct State {
-    game_details: GameDetails,
     players: Vec<Player>,
     game_map: Vec<Vec<GameCell>>,
-}
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct GameDetails {
-    //round: u16,
-    //max_rounds: u16,
-    map_width: u8,
-    map_height: u8,
-    round_income_energy: u16,
-    buildings_stats: BuildingStats
-}
-
-#[derive(Deserialize)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-struct BuildingStats {
-    energy: BuildingBlueprint,
-    defense: BuildingBlueprint,
-    attack: BuildingBlueprint,
-    tesla: BuildingBlueprint,
-}
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct BuildingBlueprint {
-    price: u16,
-    health: u8,
-    construction_time: u8,
-    weapon_damage: u8,
-    weapon_speed: u8,
-    weapon_cooldown_period: u8,
-    energy_generated_per_turn: u16,
-//    destroy_multiplier: u16,
-//    construction_score: u16
 }
 
 #[derive(Deserialize)]
@@ -67,8 +31,6 @@ struct Player {
     player_type: char,
     energy: u16,
     health: u8,
-    //hits_taken: u32,
-    //score: u32
 }
 
 #[derive(Deserialize)]
@@ -78,7 +40,6 @@ struct GameCell {
     y: u8,
     buildings: Vec<BuildingState>,
     missiles: Vec<MissileState>,
-    //cell_owner: char
 }
 
 #[derive(Deserialize)]
@@ -86,13 +47,7 @@ struct GameCell {
 struct BuildingState {
     health: u8,
     construction_time_left: i16,
-    //price: u16,
-    //weapon_damage: u8,
-    //weapon_speed: u8,
     weapon_cooldown_time_left: u8,
-    //weapon_cooldown_period: u8,
-    //destroy_multiplier: u32,
-    //construction_score: u32,
     energy_generated_per_turn: u16,
     building_type: String,
     x: u8,
@@ -103,26 +58,11 @@ struct BuildingState {
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct MissileState {
-    //damage: u8,
-    //speed: u8,
-    //x: u8,
-    //y: u8,
     player_type: char
 }
 
 
 impl State {
-    fn to_engine_settings(&self) -> engine::settings::GameSettings {
-        engine::settings::GameSettings::new(
-            engine::geometry::Point::new(self.game_details.map_width, self.game_details.map_height),
-            self.game_details.round_income_energy,
-            self.game_details.buildings_stats.energy.to_engine(),
-            self.game_details.buildings_stats.defense.to_engine(),
-            self.game_details.buildings_stats.attack.to_engine(),
-            self.game_details.buildings_stats.tesla.to_engine(),
-        )
-    }
-    
     fn to_bitwise_engine(&self) -> bitwise_engine::BitwiseGameState {
         let mut player = self.player().to_bitwise_engine();
         let mut opponent = self.opponent().to_bitwise_engine();
@@ -211,23 +151,9 @@ impl State {
     }
 }
 
-impl BuildingBlueprint {
-    fn to_engine(&self) -> engine::settings::BuildingSettings {
-        engine::settings::BuildingSettings {
-            price: self.price,
-            health: self.health,
-            construction_time: self.construction_time-1,
-            weapon_damage: self.weapon_damage,
-            weapon_speed: self.weapon_speed,
-            weapon_cooldown_period: self.weapon_cooldown_period,
-            energy_generated_per_turn: self.energy_generated_per_turn,
-        }
-    }
-}
-
 impl Player {
-    fn to_bitwise_engine(&self) -> engine::Player {
-        engine::Player {
+    fn to_bitwise_engine(&self) -> engine::bitwise_engine::Player {
+        engine::bitwise_engine::Player {
             energy: self.energy,
             health: self.health,
             energy_generated: ENERGY_GENERATED_BASE

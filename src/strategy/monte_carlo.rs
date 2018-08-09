@@ -1,7 +1,8 @@
-use engine::settings::GameSettings;
 use engine::command::*;
 use engine::geometry::*;
-use engine::{GameState, GameStatus, Player};
+use engine::status::GameStatus;
+use engine::bitwise_engine::{Player, BitwiseGameState};
+use engine::constants::*;
 
 use rand::{Rng, XorShiftRng, SeedableRng};
 
@@ -15,9 +16,9 @@ use rayon::prelude::*;
 #[cfg(feature = "energy-cutoff")] pub const ENERGY_PRODUCTION_CUTOFF: u16 = 30;
 #[cfg(feature = "energy-cutoff")] pub const ENERGY_STORAGE_CUTOFF: u16 = 45;
 
-pub fn choose_move<GS: GameState>(settings: &GameSettings, state: &GS, start_time: &PreciseTime, max_time: Duration) -> Command {
-    let mut command_scores = CommandScore::init_command_scores(settings, state);
-    let command = simulate_options_to_timeout(&mut command_scores, settings, state, start_time, max_time);
+pub fn choose_move(state: &BitwiseGameState, start_time: &PreciseTime, max_time: Duration) -> Command {
+    let mut command_scores = CommandScore::init_command_scores(state);
+    let command = simulate_options_to_timeout(&mut command_scores, state, start_time, max_time);
     
     match command {
         Some(command) => command.command,
@@ -26,7 +27,7 @@ pub fn choose_move<GS: GameState>(settings: &GameSettings, state: &GS, start_tim
 }
 
 #[cfg(not(feature = "discard-poor-performers"))]
-fn simulate_options_to_timeout<'a, GS: GameState>(command_scores: &'a mut Vec<CommandScore>, settings: &GameSettings, state: &GS, start_time: &PreciseTime, max_time: Duration) -> Option<&'a CommandScore> {
+fn simulate_options_to_timeout(command_scores: &'a mut Vec<CommandScore>, settings: &GameSettings, state: &BitwiseGameState, start_time: &PreciseTime, max_time: Duration) -> Option<&'a CommandScore> {
     loop {
         simulate_all_options_once(command_scores, settings, state);
         if start_time.to(PreciseTime::now()) > max_time {
@@ -44,7 +45,7 @@ fn simulate_options_to_timeout<'a, GS: GameState>(command_scores: &'a mut Vec<Co
 }
 
 #[cfg(feature = "discard-poor-performers")]
-fn simulate_options_to_timeout<'a, GS: GameState>(command_scores: &'a mut Vec<CommandScore>, settings: &GameSettings, state: &GS, start_time: &PreciseTime, max_time: Duration) -> Option<&'a CommandScore> {
+fn simulate_options_to_timeout<'a>(command_scores: &'a mut Vec<CommandScore>, state: &BitwiseGameState, start_time: &PreciseTime, max_time: Duration) -> Option<&'a CommandScore> {
     use std::cmp;
     let min_options = cmp::min(command_scores.len(), 5);
     
@@ -53,7 +54,7 @@ fn simulate_options_to_timeout<'a, GS: GameState>(command_scores: &'a mut Vec<Co
         let new_length = cmp::max(min_options, command_scores.len() / (2usize.pow(i as u32)));
         let active_scores = &mut command_scores[0..new_length];
         loop {
-            simulate_all_options_once(active_scores, settings, state);
+            simulate_all_options_once(active_scores, state);
             if start_time.to(PreciseTime::now()) > max {
                 break;
             }
@@ -71,37 +72,37 @@ fn simulate_options_to_timeout<'a, GS: GameState>(command_scores: &'a mut Vec<Co
 }
 
 #[cfg(feature = "single-threaded")]
-fn simulate_all_options_once<GS: GameState>(command_scores: &mut[CommandScore], settings: &GameSettings, state: &GS) {
+fn simulate_all_options_once(command_scores: &mut[CommandScore], state: &BitwiseGameState) {
     command_scores.iter_mut()
         .for_each(|score| {
             let mut rng = XorShiftRng::from_seed(score.next_seed);
-            simulate_to_endstate(score, settings, state, &mut rng);
+            simulate_to_endstate(score, state, &mut rng);
         });
 }
 
 #[cfg(not(feature = "single-threaded"))]
-fn simulate_all_options_once<GS: GameState>(command_scores: &mut[CommandScore], settings: &GameSettings, state: &GS) {
+fn simulate_all_options_once(command_scores: &mut[CommandScore], state: &BitwiseGameState) {
     command_scores.par_iter_mut()
         .for_each(|score| {
             let mut rng = XorShiftRng::from_seed(score.next_seed);
-            simulate_to_endstate(score, settings, state, &mut rng);
+            simulate_to_endstate(score, state, &mut rng);
         });
 }
 
-fn simulate_to_endstate<R: Rng, GS: GameState>(command_score: &mut CommandScore, settings: &GameSettings, state: &GS, rng: &mut R) {
+fn simulate_to_endstate<R: Rng>(command_score: &mut CommandScore, state: &BitwiseGameState, rng: &mut R) {
     let mut state_mut = state.clone();
     
-    let opponent_first = random_opponent_move(settings, &state_mut, rng);
-    let mut status = state_mut.simulate(settings, command_score.command, opponent_first);
+    let opponent_first = random_opponent_move(&state_mut, rng);
+    let mut status = state_mut.simulate(command_score.command, opponent_first);
     
     for _ in 0..MAX_MOVES {
         if status != GameStatus::Continue {
             break;
         }
 
-        let player_command = random_player_move(settings, &state_mut, rng);
-        let opponent_command = random_opponent_move(settings, &state_mut, rng);
-        status = state_mut.simulate(settings, player_command, opponent_command);
+        let player_command = random_player_move(&state_mut, rng);
+        let opponent_command = random_opponent_move(&state_mut, rng);
+        status = state_mut.simulate(player_command, opponent_command);
     }
 
     let next_seed = [rng.next_u32(), rng.next_u32(), rng.next_u32(), rng.next_u32()];
@@ -113,13 +114,13 @@ fn simulate_to_endstate<R: Rng, GS: GameState>(command_score: &mut CommandScore,
     }
 }
 
-fn random_player_move<R: Rng, GS: GameState>(settings: &GameSettings, state: &GS, rng: &mut R) -> Command {
-    let all_buildings = sensible_buildings(settings, &state.player(), state.player_has_max_teslas());
+fn random_player_move<R: Rng>(state: &BitwiseGameState, rng: &mut R) -> Command {
+    let all_buildings = sensible_buildings(&state.player(), state.player_has_max_teslas());
     random_move(&all_buildings, rng, state.unoccupied_player_cell_count(), |i| state.location_of_unoccupied_player_cell(i))
 }
 
-fn random_opponent_move<R: Rng, GS: GameState>(settings: &GameSettings, state: &GS, rng: &mut R) -> Command {
-    let all_buildings = sensible_buildings(settings, &state.opponent(), state.opponent_has_max_teslas());
+fn random_opponent_move<R: Rng>(state: &BitwiseGameState, rng: &mut R) -> Command {
+    let all_buildings = sensible_buildings(&state.opponent(), state.opponent_has_max_teslas());
     random_move(&all_buildings, rng, state.unoccupied_opponent_cell_count(), |i| state.location_of_unoccupied_opponent_cell(i))
 }
 
@@ -197,8 +198,8 @@ impl CommandScore {
     }
 
     //TODO: Devalue nothing so that it doesn't stand and do nothing when it can do things
-    fn init_command_scores<GS: GameState>(settings: &GameSettings, state: &GS) -> Vec<CommandScore> {
-        let all_buildings = sensible_buildings(settings, &state.player(), state.player_has_max_teslas());
+    fn init_command_scores(state: &BitwiseGameState) -> Vec<CommandScore> {
+        let all_buildings = sensible_buildings(&state.player(), state.player_has_max_teslas());
 
         let unoccupied_cells = (0..state.unoccupied_player_cell_count()).map(|i| state.location_of_unoccupied_player_cell(i));
 
@@ -219,36 +220,47 @@ impl CommandScore {
 }
 
 #[cfg(not(feature = "energy-cutoff"))]
-fn sensible_buildings(settings: &GameSettings, player: &Player, has_max_teslas: bool) -> Vec<BuildingType> {
+fn sensible_buildings(player: &Player, has_max_teslas: bool) -> Vec<BuildingType> {
     let mut result = Vec::with_capacity(4);
-    for b in BuildingType::all().iter() {
-        let building_setting = settings.building_settings(*b);
-        let affordable = building_setting.price <= player.energy;
-        let is_tesla = *b == BuildingType::Tesla;
-        if affordable && (!is_tesla || !has_max_teslas) {
-            result.push(*b);
-        }
+
+    if DEFENCE_PRICE <= player.energy {
+        result.push(BuildingType::Defence);
     }
+    if MISSILE_PRICE <= player.energy {
+        result.push(BuildingType::Attack);
+    }
+    if ENERGY_PRICE <= player.energy {
+        result.push(BuildingType::Energy);
+    }
+    if TESLA_PRICE <= player.energy && !has_max_teslas {
+        result.push(BuildingType::Tesla);
+    }
+
     result
 }
 
 
 //TODO: Heuristic that avoids building the initial energy towers all in the same row?
+//TODO: Update cutoff to maybe build iron curtains
 #[cfg(feature = "energy-cutoff")]
-fn sensible_buildings(settings: &GameSettings, player: &Player, has_max_teslas: bool) -> Vec<BuildingType> {
+fn sensible_buildings(player: &Player, has_max_teslas: bool) -> Vec<BuildingType> {
     let mut result = Vec::with_capacity(4);
     let needs_energy = player.energy_generated <= ENERGY_PRODUCTION_CUTOFF ||
         player.energy <= ENERGY_STORAGE_CUTOFF;
-    
-    for b in BuildingType::all().iter() {
-        let building_setting = settings.building_settings(*b);
-        let affordable = building_setting.price <= player.energy;
-        let energy_producing = building_setting.energy_generated_per_turn > 0;
-        let is_tesla = *b == BuildingType::Tesla;
-        if affordable && (!energy_producing || needs_energy) && (!is_tesla || !has_max_teslas) {
-            result.push(*b);
-        }
+
+    if DEFENCE_PRICE <= player.energy {
+        result.push(BuildingType::Defence);
     }
+    if MISSILE_PRICE <= player.energy {
+        result.push(BuildingType::Attack);
+    }
+    if ENERGY_PRICE <= player.energy && needs_energy {
+        result.push(BuildingType::Energy);
+    }
+    if TESLA_PRICE <= player.energy && !has_max_teslas {
+        result.push(BuildingType::Tesla);
+    }
+    
     result
 }
 

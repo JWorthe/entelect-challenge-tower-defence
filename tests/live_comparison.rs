@@ -3,8 +3,7 @@ extern crate zombot;
 use zombot::input::json;
 use zombot::engine::command::{Command, BuildingType};
 use zombot::engine::geometry::Point;
-use zombot::engine::settings::GameSettings;
-use zombot::engine::GameState;
+use zombot::engine::constants::*;
 
 use std::fs::File;
 use std::io::prelude::*;
@@ -20,14 +19,14 @@ fn it_successfully_simulates_replay_with_teslas() {
 }
 
 fn test_from_replay(replay_folder: &str, length: usize) {
-    let (settings, mut state) = json::read_bitwise_state_from_file(&format!("{}/Round 000/state.json", replay_folder)).unwrap();
+    let  mut state = json::read_bitwise_state_from_file(&format!("{}/Round 000/state.json", replay_folder)).unwrap();
     
     for i in 0..length {
         let player = read_player_command(&format!("{}/Round {:03}/PlayerCommand.txt", replay_folder, i));
-        let opponent = read_opponent_command(&format!("{}/Round {:03}/OpponentCommand.txt", replay_folder, i), &settings);
-        let (_, mut expected_state) = json::read_bitwise_state_from_file(&format!("{}/Round {:03}/state.json", replay_folder, i+1)).unwrap();
+        let opponent = read_opponent_command(&format!("{}/Round {:03}/OpponentCommand.txt", replay_folder, i));
+        let mut expected_state = json::read_bitwise_state_from_file(&format!("{}/Round {:03}/state.json", replay_folder, i+1)).unwrap();
         
-        state.simulate(&settings, player, opponent);
+        state.simulate(player, opponent);
         state.sort();
         expected_state.sort();
 
@@ -56,15 +55,15 @@ fn read_player_command(filename: &str) -> Command {
     }
 }
 
-fn read_opponent_command(filename: &str, settings: &GameSettings) -> Command {
+fn read_opponent_command(filename: &str) -> Command {
     match read_player_command(filename) {
         Command::Nothing => Command::Nothing,
         Command::Build(p, b) => Command::Build(Point::new(
-            settings.size.x - p.x - 1,
+            FULL_MAP_WIDTH - p.x - 1,
             p.y
         ), b),
         Command::Deconstruct(p) => Command::Deconstruct(Point::new(
-            settings.size.x - p.x - 1,
+            FULL_MAP_WIDTH - p.x - 1,
             p.y
         )),
     }
