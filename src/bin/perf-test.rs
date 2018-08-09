@@ -13,20 +13,6 @@ fn main() {
     bitwise();
 }
 
-fn _expressive() {
-    println!("Running expressive engine");
-    let start_time = PreciseTime::now();
-    let (settings, state) = match input::json::read_expressive_state_from_file(STATE_PATH) {
-        Ok(ok) => ok,
-        Err(error) => {
-            println!("Error while parsing JSON file: {}", error);
-            process::exit(1);
-        }
-    };
-    let max_time = Duration::milliseconds(MAX_TIME_MILLIS);
-    strategy::monte_carlo::choose_move(&settings, &state, &start_time, max_time);
-}
-
 fn bitwise() {
     println!("Running bitwise engine");
     let start_time = PreciseTime::now();
