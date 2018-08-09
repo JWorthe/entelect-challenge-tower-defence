@@ -48,7 +48,6 @@ struct BuildingState {
     health: u8,
     construction_time_left: i16,
     weapon_cooldown_time_left: u8,
-    energy_generated_per_turn: u16,
     building_type: String,
     x: u8,
     y: u8,
@@ -64,8 +63,8 @@ struct MissileState {
 
 impl State {
     fn to_bitwise_engine(&self) -> bitwise_engine::BitwiseGameState {
-        let mut player = self.player().to_bitwise_engine();
-        let mut opponent = self.opponent().to_bitwise_engine();
+        let player = self.player().to_bitwise_engine();
+        let opponent = self.opponent().to_bitwise_engine();
         let mut player_buildings = bitwise_engine::PlayerBuildings::empty();
         let mut opponent_buildings = bitwise_engine::PlayerBuildings::empty();
         for row in &self.game_map {
@@ -74,10 +73,10 @@ impl State {
                 for building in &cell.buildings {
                     let building_type = building.convert_building_type();
                     
-                    let (mut engine_player, mut bitwise_buildings, bitfield) = if building.player_type == 'A' {
-                        (&mut player, &mut player_buildings, point.to_left_bitfield())
+                    let (mut bitwise_buildings, bitfield) = if building.player_type == 'A' {
+                        (&mut player_buildings, point.to_left_bitfield())
                     } else {
-                        (&mut opponent, &mut opponent_buildings, point.to_right_bitfield())
+                        (&mut opponent_buildings, point.to_right_bitfield())
                     };
 
                     bitwise_buildings.occupied |= bitfield;
@@ -91,7 +90,6 @@ impl State {
                         }
                         if building_type == command::BuildingType::Energy {
                             bitwise_buildings.energy_towers |= bitfield;
-                            engine_player.energy_generated += building.energy_generated_per_turn;
                         }
                         else if building_type == command::BuildingType::Attack {
                             for cooldown_tier in 0..MISSILE_COOLDOWN + 1 {
@@ -155,8 +153,7 @@ impl Player {
     fn to_bitwise_engine(&self) -> engine::bitwise_engine::Player {
         engine::bitwise_engine::Player {
             energy: self.energy,
-            health: self.health,
-            energy_generated: ENERGY_GENERATED_BASE
+            health: self.health
         }
     }
 }

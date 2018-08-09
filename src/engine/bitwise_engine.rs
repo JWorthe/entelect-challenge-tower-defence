@@ -9,8 +9,7 @@ const RIGHT_COL_MASK: u64 = 0x8080808080808080;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Player {
     pub energy: u16,
-    pub health: u8,
-    pub energy_generated: u16,
+    pub health: u8
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -421,8 +420,7 @@ impl BitwiseGameState {
     
     
     fn add_energy(player: &mut Player, player_buildings: &mut PlayerBuildings) {
-        player.energy_generated = ENERGY_GENERATED_BASE + player_buildings.energy_towers.count_ones() as u16 * ENERGY_GENERATED_TOWER;
-        player.energy += player.energy_generated;
+        player.energy += player_buildings.energy_generated();
     }
 
     fn update_status(&mut self) {
@@ -455,6 +453,10 @@ impl PlayerBuildings {
             missiles: [(0,0); MISSILE_MAX_SINGLE_CELL],
             tesla_cooldowns: [TeslaCooldown::empty(); TESLA_MAX]
         }
+    }
+
+    pub fn energy_generated(&self) -> u16 {
+        ENERGY_GENERATED_BASE + self.energy_towers.count_ones() as u16 * ENERGY_GENERATED_TOWER
     }
 }
 
