@@ -28,6 +28,8 @@ pub const ENERGY_CONSTRUCTION_TIME: u8 = 1;
 
 pub const DECONSTRUCT_ENERGY: u16 = 5;
 
+pub const MAX_CONCURRENT_CONSTRUCTION: usize = 5; //2 teslas, and 3 of anything else
+
 
 #[cfg(not(feature = "reduced-time"))]
 #[cfg(not(feature = "extended-time"))]

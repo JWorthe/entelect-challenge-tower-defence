@@ -3,6 +3,8 @@ use engine::geometry::Point;
 use engine::constants::*;
 use engine::status::GameStatus;
 
+use arrayvec::ArrayVec;
+
 const LEFT_COL_MASK: u64 = 0x0101010101010101;
 const RIGHT_COL_MASK: u64 = 0x8080808080808080;
 
@@ -21,10 +23,9 @@ pub struct BitwiseGameState {
     pub opponent_buildings: PlayerBuildings,
 }
 
-//TODO: Add in smallvec?
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PlayerBuildings {
-    pub unconstructed: Vec<UnconstructedBuilding>,
+    pub unconstructed: ArrayVec<[UnconstructedBuilding; MAX_CONCURRENT_CONSTRUCTION]>,
     pub buildings: [u64; DEFENCE_HEALTH],
     pub occupied: u64,
     
@@ -34,7 +35,7 @@ pub struct PlayerBuildings {
     pub firing_tower: usize,
     
     pub missiles: [(u64, u64); MISSILE_MAX_SINGLE_CELL],
-    pub tesla_cooldowns: [TeslaCooldown; TESLA_MAX]
+    pub tesla_cooldowns: ArrayVec<[TeslaCooldown; TESLA_MAX]>
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -46,7 +47,6 @@ pub struct UnconstructedBuilding {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct TeslaCooldown {
-    pub active: bool,
     pub pos: Point,
     pub cooldown: u8,
     pub age: u16
@@ -169,23 +169,8 @@ impl BitwiseGameState {
         self.player_buildings.unconstructed.sort_by_key(|b| b.pos);
         self.opponent_buildings.unconstructed.sort_by_key(|b| b.pos);
 
-        for tesla in self.player_buildings.tesla_cooldowns.iter_mut() {
-            if !tesla.active {
-                tesla.pos = Point::new(0,0);
-                tesla.cooldown = 0;
-                tesla.age = 0;
-            }
-        }
-        for tesla in self.opponent_buildings.tesla_cooldowns.iter_mut() {
-            if !tesla.active {
-                tesla.pos = Point::new(0,0);
-                tesla.cooldown = 0;
-                tesla.age = 0;
-            }
-        }
-
-        self.player_buildings.tesla_cooldowns.sort_by_key(|b| (!b.active, b.pos));
-        self.opponent_buildings.tesla_cooldowns.sort_by_key(|b| (!b.active, b.pos));
+        self.player_buildings.tesla_cooldowns.sort_by_key(|b| b.pos);
+        self.opponent_buildings.tesla_cooldowns.sort_by_key(|b| b.pos);
 
 
         while self.player_buildings.firing_tower > 0 {
@@ -269,11 +254,7 @@ impl BitwiseGameState {
                 for tier in 0..player_buildings.missile_towers.len() {
                     player_buildings.missile_towers[tier] &= deconstruct_mask;
                 }
-                for tesla in 0..player_buildings.tesla_cooldowns.len() {
-                    if player_buildings.tesla_cooldowns[tesla].pos == p {
-                        player_buildings.tesla_cooldowns[tesla].active = false;
-                    }
-                }
+                player_buildings.tesla_cooldowns.retain(|t| t.pos != p);
                 player_buildings.occupied &= deconstruct_mask;
             }
         }
@@ -299,15 +280,11 @@ impl BitwiseGameState {
                     player_buildings.missile_towers[player_buildings.firing_tower] |= bitfield;
                 }
                 if building_type == BuildingType::Tesla {
-                    let ref mut tesla_cooldown = if player_buildings.tesla_cooldowns[0].active {
-                        &mut player_buildings.tesla_cooldowns[1]
-                    } else {
-                        &mut player_buildings.tesla_cooldowns[0]
-                    };
-                    tesla_cooldown.active = true;
-                    tesla_cooldown.pos = pos;
-                    tesla_cooldown.cooldown = 0;
-                    tesla_cooldown.age = 0;
+                    player_buildings.tesla_cooldowns.push(TeslaCooldown { 
+                        pos: pos,
+                        cooldown: 0,
+                        age: 0
+                    });
                 }
                 
                 buildings_len -= 1;
@@ -329,7 +306,7 @@ impl BitwiseGameState {
 
     fn fire_single_players_teslas_without_cleanup(player: &mut Player, player_buildings: &mut PlayerBuildings, opponent: &mut Player, opponent_buildings: &mut PlayerBuildings) {
         player_buildings.tesla_cooldowns.sort_unstable_by(|a, b| b.age.cmp(&a.age));
-        for tesla in player_buildings.tesla_cooldowns.iter_mut().filter(|t| t.active) {
+        for tesla in player_buildings.tesla_cooldowns.iter_mut() {
             tesla.age += 1;
             if tesla.cooldown > 0 {
                 tesla.cooldown -= 1;
@@ -413,9 +390,8 @@ impl BitwiseGameState {
     }
 
     fn update_tesla_activity(buildings: &mut PlayerBuildings) {
-        for i in 0..TESLA_MAX {
-            buildings.tesla_cooldowns[i].active = buildings.tesla_cooldowns[i].active && (buildings.tesla_cooldowns[i].pos.to_either_bitfield() & buildings.occupied) != 0;
-        }
+        let occupied = buildings.occupied;
+        buildings.tesla_cooldowns.retain(|t| (t.pos.to_either_bitfield() & occupied) != 0);
     }
     
     
@@ -438,35 +414,24 @@ impl BitwiseGameState {
 
 impl PlayerBuildings {
     pub fn count_teslas(&self) -> usize {
-        self.tesla_cooldowns.iter().filter(|t| t.active).count()
+        self.tesla_cooldowns.len()
             + self.unconstructed.iter().filter(|t| t.building_type == BuildingType::Tesla).count()
     }
 
     pub fn empty() -> PlayerBuildings {
         PlayerBuildings {
-            unconstructed: Vec::with_capacity(4),
+            unconstructed: ArrayVec::new(),
             buildings: [0; DEFENCE_HEALTH],
             occupied: 0,
             energy_towers: 0,
             missile_towers: [0; MISSILE_COOLDOWN_STATES],
             firing_tower: 0,
             missiles: [(0,0); MISSILE_MAX_SINGLE_CELL],
-            tesla_cooldowns: [TeslaCooldown::empty(); TESLA_MAX]
+            tesla_cooldowns: ArrayVec::new()
         }
     }
 
     pub fn energy_generated(&self) -> u16 {
         ENERGY_GENERATED_BASE + self.energy_towers.count_ones() as u16 * ENERGY_GENERATED_TOWER
-    }
-}
-
-impl TeslaCooldown {
-    pub fn empty() -> TeslaCooldown {
-        TeslaCooldown {
-            active: false,
-            pos: Point::new(0,0),
-            cooldown: 0,
-            age: 0
-        }
     }
 }

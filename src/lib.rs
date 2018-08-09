@@ -9,6 +9,8 @@ extern crate time;
 
 extern crate rayon;
 
+extern crate arrayvec;
+
 pub mod input;
 pub mod engine;
 pub mod strategy;

@@ -99,15 +99,11 @@ impl State {
                             }
                         }
                         else if building_type == command::BuildingType::Tesla {
-                            let ref mut tesla_cooldown = if bitwise_buildings.tesla_cooldowns[0].active {
-                                &mut bitwise_buildings.tesla_cooldowns[1]
-                            } else {
-                                &mut bitwise_buildings.tesla_cooldowns[0]
-                            };
-                            tesla_cooldown.active = true;
-                            tesla_cooldown.pos = point;
-                            tesla_cooldown.cooldown = building.weapon_cooldown_time_left;
-                            tesla_cooldown.age = building.construction_time_left.abs() as u16;
+                            bitwise_buildings.tesla_cooldowns.push(bitwise_engine::TeslaCooldown { 
+                                pos: point,
+                                cooldown: building.weapon_cooldown_time_left,
+                                age: building.construction_time_left.abs() as u16
+                            });
                         }
                     }
                 }

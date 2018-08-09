@@ -11,6 +11,8 @@ rand = "0.4.2"
 time = "0.1.4"
 rayon = "1.0.1"
 
+arrayvec = "0.4.7"
+
 [dev-dependencies]
 proptest = "0.7.2"
 
