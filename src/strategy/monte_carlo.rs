@@ -123,6 +123,7 @@ fn random_opponent_move<R: Rng, GS: GameState>(settings: &GameSettings, state: &
     random_move(&all_buildings, rng, state.unoccupied_opponent_cell_count(), |i| state.location_of_unoccupied_opponent_cell(i))
 }
 
+// TODO: Given enough energy, most opponents won't do nothing
 fn random_move<R: Rng, F:Fn(usize)->Point>(all_buildings: &[BuildingType], rng: &mut R, free_positions_count: usize, get_point: F) -> Command {
     let building_command_count = free_positions_count*all_buildings.len();
     let nothing_count = 1;
@@ -130,6 +131,8 @@ fn random_move<R: Rng, F:Fn(usize)->Point>(all_buildings: &[BuildingType], rng: 
     let number_of_commands = building_command_count + nothing_count;
     
     let choice_index = rng.gen_range(0, number_of_commands);
+
+    // TODO: Remove the divide here?
 
     if choice_index == number_of_commands - 1 {
         Command::Nothing
@@ -192,7 +195,8 @@ impl CommandScore {
     fn win_ratio(&self) -> i32 {
         (self.victories as i32 - self.defeats as i32) * 10000 / (self.attempts as i32)
     }
-    
+
+    //TODO: Devalue nothing so that it doesn't stand and do nothing when it can do things
     fn init_command_scores<GS: GameState>(settings: &GameSettings, state: &GS) -> Vec<CommandScore> {
         let all_buildings = sensible_buildings(settings, &state.player(), state.player_has_max_teslas());
 
@@ -229,6 +233,7 @@ fn sensible_buildings(settings: &GameSettings, player: &Player, has_max_teslas: 
 }
 
 
+//TODO: Heuristic that avoids building the initial energy towers all in the same row?
 #[cfg(feature = "energy-cutoff")]
 fn sensible_buildings(settings: &GameSettings, player: &Player, has_max_teslas: bool) -> Vec<BuildingType> {
     let mut result = Vec::with_capacity(4);

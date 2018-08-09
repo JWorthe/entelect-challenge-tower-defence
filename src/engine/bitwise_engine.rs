@@ -16,6 +16,7 @@ pub struct BitwiseGameState {
     pub opponent_buildings: PlayerBuildings,
 }
 
+//TODO: Add in smallvec?
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PlayerBuildings {
     pub unconstructed: Vec<UnconstructedBuilding>,
