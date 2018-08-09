@@ -3,7 +3,6 @@ extern crate zombot;
 use zombot::input::json;
 use zombot::engine::command::{Command, BuildingType};
 use zombot::engine::geometry::Point;
-use zombot::engine::constants::*;
 
 use std::fs::File;
 use std::io::prelude::*;
@@ -56,16 +55,5 @@ fn read_player_command(filename: &str) -> Command {
 }
 
 fn read_opponent_command(filename: &str) -> Command {
-    match read_player_command(filename) {
-        Command::Nothing => Command::Nothing,
-        Command::Build(p, b) => Command::Build(Point::new(
-            FULL_MAP_WIDTH - p.x - 1,
-            p.y
-        ), b),
-        Command::Deconstruct(p) => Command::Deconstruct(Point::new(
-            FULL_MAP_WIDTH - p.x - 1,
-            p.y
-        )),
-    }
-    
+    read_player_command(filename)
 }

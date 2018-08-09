@@ -73,11 +73,12 @@ impl State {
                 for building in &cell.buildings {
                     let building_type = building.convert_building_type();
                     
-                    let (mut bitwise_buildings, bitfield) = if building.player_type == 'A' {
-                        (&mut player_buildings, point.to_left_bitfield())
+                    let mut bitwise_buildings = if building.player_type == 'A' {
+                        &mut player_buildings
                     } else {
-                        (&mut opponent_buildings, point.to_right_bitfield())
+                        &mut opponent_buildings
                     };
+                    let bitfield = point.to_either_bitfield();
 
                     bitwise_buildings.occupied |= bitfield;
                     if building.construction_time_left >= 0 {
@@ -108,11 +109,11 @@ impl State {
                     }
                 }
                 for missile in &cell.missiles {
-                    let bitfields = point.to_bitfield();
-                    let (mut bitwise_buildings, mut left, mut right) = if missile.player_type == 'A' {
-                        (&mut player_buildings, bitfields.0, bitfields.1)
+                    let (mut left, mut right) = engine::geometry::Point::new_double_bitfield(cell.x, cell.y, missile.player_type == 'A');
+                    let mut bitwise_buildings = if missile.player_type == 'A' {
+                        &mut player_buildings
                     } else {
-                        (&mut opponent_buildings, bitfields.1, bitfields.0)
+                        &mut opponent_buildings
                     };
 
                     for mut tier in bitwise_buildings.missiles.iter_mut() {

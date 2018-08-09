@@ -85,13 +85,13 @@ impl BitwiseGameState {
     pub fn unoccupied_opponent_cell_count(&self) -> usize { self.opponent_buildings.occupied.count_zeros() as usize }
     pub fn location_of_unoccupied_player_cell(&self, i: usize) -> Point  {
         let bit = find_bit_index_from_rank(self.player_buildings.occupied, i as u64);
-        let point = Point::new(bit%SINGLE_MAP_WIDTH, bit/SINGLE_MAP_WIDTH);
+        let point = Point { index: bit };
         debug_assert!(point.to_either_bitfield() & self.player_buildings.occupied == 0);
         point
     }
     pub fn location_of_unoccupied_opponent_cell(&self, i: usize) -> Point {
         let bit = find_bit_index_from_rank(self.opponent_buildings.occupied, i as u64);
-        let point = Point::new(FULL_MAP_WIDTH - bit%SINGLE_MAP_WIDTH - 1, bit/SINGLE_MAP_WIDTH);
+        let point = Point { index: bit };
         debug_assert!(point.to_either_bitfield() & self.opponent_buildings.occupied == 0);
         point
     }
@@ -222,7 +222,7 @@ impl BitwiseGameState {
                 // This is used internally. I should not be making
                 // invalid moves!
                 debug_assert!(player_buildings.buildings[0] & bitfield == 0);
-                debug_assert!(p.x < FULL_MAP_WIDTH && p.y < MAP_HEIGHT);
+                debug_assert!(p.x() < FULL_MAP_WIDTH && p.y() < MAP_HEIGHT);
                 debug_assert!(player.energy >= price);
                 debug_assert!(b != BuildingType::Tesla ||
                               player_buildings.count_teslas() < TESLA_MAX);
@@ -314,20 +314,20 @@ impl BitwiseGameState {
                 player.energy -= TESLA_FIRING_ENERGY;
                 tesla.cooldown = TESLA_COOLDOWN;
 
-                let flipped_pos = tesla.pos.flip_x();
-
-                if flipped_pos.x >= SINGLE_MAP_WIDTH - 1 {
+                if tesla.pos.to_either_bitfield() & RIGHT_COL_MASK != 0 {
                     opponent.health = opponent.health.saturating_sub(TESLA_DAMAGE);
                 }
 
-                let missed_cells = ((SINGLE_MAP_WIDTH - flipped_pos.x) as u32).saturating_sub(2);
+                let x = tesla.pos.x();
+                let y = tesla.pos.y();
+                let missed_cells = ((SINGLE_MAP_WIDTH - x) as u32).saturating_sub(2);
                 
-                let top_row = if tesla.pos.y == 0 { 0 } else { tesla.pos.y - 1 };
+                let top_row = y.saturating_sub(1);
                 let top_row_mask = 255u64 << (top_row * SINGLE_MAP_WIDTH);
                 let mut destroy_mask = top_row_mask.wrapping_shl(missed_cells) & top_row_mask;
 
                 let mut hits = 0;
-                for _ in 0..(if tesla.pos.y == 0 || tesla.pos.y == MAP_HEIGHT-1 { 2 } else { 3 }) {
+                for _ in 0..(if y == 0 || y == MAP_HEIGHT-1 { 2 } else { 3 }) {
                     hits |= destroy_mask & opponent_buildings.buildings[0];
                     destroy_mask &= !hits;
                     destroy_mask = destroy_mask << SINGLE_MAP_WIDTH;
