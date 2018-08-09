@@ -126,21 +126,16 @@ fn random_opponent_move<R: Rng>(state: &BitwiseGameState, rng: &mut R) -> Comman
 
 // TODO: Given enough energy, most opponents won't do nothing
 fn random_move<R: Rng, F:Fn(usize)->Point>(all_buildings: &[BuildingType], rng: &mut R, free_positions_count: usize, get_point: F) -> Command {
-    let building_command_count = free_positions_count*all_buildings.len();
     let nothing_count = 1;
-
-    let number_of_commands = building_command_count + nothing_count;
+    let building_choice_index = rng.gen_range(0, nothing_count + all_buildings.len());
     
-    let choice_index = rng.gen_range(0, number_of_commands);
-
-    // TODO: Remove the divide here?
-
-    if choice_index == number_of_commands - 1 {
+    if building_choice_index == all_buildings.len() {
         Command::Nothing
     } else {
+        let position_choice = rng.gen_range(0, free_positions_count);
         Command::Build(
-            get_point(choice_index/all_buildings.len()),
-            all_buildings[choice_index%all_buildings.len()]
+            get_point(position_choice),
+            all_buildings[building_choice_index]
         )
     }
 }

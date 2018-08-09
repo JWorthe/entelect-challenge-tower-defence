@@ -28,7 +28,7 @@ pub const ENERGY_CONSTRUCTION_TIME: u8 = 1;
 
 pub const DECONSTRUCT_ENERGY: u16 = 5;
 
-pub const MAX_CONCURRENT_CONSTRUCTION: usize = 5; //2 teslas, and 3 of anything else
+pub const MAX_CONCURRENT_CONSTRUCTION: usize = 6; //2 teslas, and 3 of anything else, 1 extra because it's push here then update construction times
 
 
 #[cfg(not(feature = "reduced-time"))]
