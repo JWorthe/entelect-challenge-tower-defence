@@ -18,13 +18,17 @@ pub const TESLA_MAX: usize = 2;
 pub const TESLA_COOLDOWN: u8 = 10;
 pub const TESLA_FIRING_ENERGY: u16 = 100;
 pub const TESLA_DAMAGE: u8 = 20;
-pub const TESLA_PRICE: u16 = 300;
+pub const TESLA_PRICE: u16 = 100;
 pub const TESLA_CONSTRUCTION_TIME: u8 = 10;
 
 pub const ENERGY_GENERATED_BASE: u16 = 5;
 pub const ENERGY_GENERATED_TOWER: u16 = 3;
 pub const ENERGY_PRICE: u16 = 20;
 pub const ENERGY_CONSTRUCTION_TIME: u8 = 1;
+
+pub const IRON_CURTAIN_PRICE: u16 = 100;
+pub const IRON_CURTAIN_UNLOCK_INTERVAL: u8 = 30;
+pub const IRON_CURTAIN_DURATION: u8 = 6;
 
 pub const DECONSTRUCT_ENERGY: u16 = 5;
 

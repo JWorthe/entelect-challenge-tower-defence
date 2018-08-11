@@ -31,6 +31,8 @@ struct Player {
     player_type: char,
     energy: u16,
     health: u8,
+    iron_curtain_available: bool,
+    active_iron_curtain_lifetime: i16
 }
 
 #[derive(Deserialize)]
@@ -63,10 +65,28 @@ struct MissileState {
 
 impl State {
     fn to_bitwise_engine(&self) -> bitwise_engine::BitwiseGameState {
-        let player = self.player().to_bitwise_engine();
-        let opponent = self.opponent().to_bitwise_engine();
+        let json_player = self.player();
+        let player = json_player.to_bitwise_engine();
+        let json_opponent = self.opponent();
+        let opponent = json_opponent.to_bitwise_engine();
         let mut player_buildings = bitwise_engine::PlayerBuildings::empty();
         let mut opponent_buildings = bitwise_engine::PlayerBuildings::empty();
+
+        // TODO roll the player into the playerbuildings and remove this duplication
+        player_buildings.iron_curtain_available = json_player.iron_curtain_available;
+        player_buildings.iron_curtain_remaining = if json_player.active_iron_curtain_lifetime < 0 {
+            0
+        } else {
+            json_player.active_iron_curtain_lifetime as u8
+        };
+        opponent_buildings.iron_curtain_available = json_opponent.iron_curtain_available;
+        opponent_buildings.iron_curtain_remaining = if json_opponent.active_iron_curtain_lifetime < 0 {
+            0
+        } else {
+            json_opponent.active_iron_curtain_lifetime as u8
+        };
+
+        
         for row in &self.game_map {
             for cell in row {
                 let point = engine::geometry::Point::new(cell.x, cell.y);

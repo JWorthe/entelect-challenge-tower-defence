@@ -5,7 +5,8 @@ use super::geometry::Point;
 pub enum Command {
     Nothing,
     Build(Point, BuildingType),
-    Deconstruct(Point)
+    Deconstruct(Point),
+    IronCurtain
 }
 
 impl fmt::Display for Command {
@@ -14,6 +15,7 @@ impl fmt::Display for Command {
             Command::Nothing => write!(f, ""),
             Command::Build(p, b) => write!(f, "{},{},{}", p.x(), p.y(), b as u8),
             Command::Deconstruct(p) => write!(f, "{},{},3", p.x(), p.y()),
+            Command::IronCurtain => write!(f, "0,0,5")
         }
     }
 }

@@ -35,7 +35,10 @@ pub struct PlayerBuildings {
     pub firing_tower: usize,
     
     pub missiles: [(u64, u64); MISSILE_MAX_SINGLE_CELL],
-    pub tesla_cooldowns: ArrayVec<[TeslaCooldown; TESLA_MAX]>
+    pub tesla_cooldowns: ArrayVec<[TeslaCooldown; TESLA_MAX]>,
+
+    pub iron_curtain_available: bool,
+    pub iron_curtain_remaining: u8,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -60,6 +63,9 @@ impl BitwiseGameState {
 
         BitwiseGameState::update_construction(&mut self.player_buildings);
         BitwiseGameState::update_construction(&mut self.opponent_buildings);
+
+        BitwiseGameState::update_iron_curtain(&mut self.player_buildings);
+        BitwiseGameState::update_iron_curtain(&mut self.opponent_buildings);
         
         BitwiseGameState::fire_teslas(&mut self.player, &mut self.player_buildings, &mut self.opponent, &mut self.opponent_buildings);
 
@@ -255,6 +261,14 @@ impl BitwiseGameState {
                 }
                 player_buildings.tesla_cooldowns.retain(|t| t.pos != p);
                 player_buildings.occupied &= deconstruct_mask;
+            },
+            Command::IronCurtain => {
+                debug_assert!(player_buildings.iron_curtain_available);
+                debug_assert!(player.energy >= IRON_CURTAIN_PRICE);
+
+                player.energy -= IRON_CURTAIN_PRICE;
+                player_buildings.iron_curtain_available = false;
+                player_buildings.iron_curtain_remaining = IRON_CURTAIN_DURATION;
             }
         }
     }
@@ -295,6 +309,11 @@ impl BitwiseGameState {
         player_buildings.unconstructed.truncate(buildings_len);
     }
 
+    fn update_iron_curtain(player_buildings: &mut PlayerBuildings) {
+        //TODO: Get in current round and set available to true
+        player_buildings.iron_curtain_remaining -= 1;
+    }
+    
     fn fire_teslas(player: &mut Player, player_buildings: &mut PlayerBuildings, opponent: &mut Player, opponent_buildings: &mut PlayerBuildings) {
         BitwiseGameState::fire_single_players_teslas_without_cleanup(player, player_buildings, opponent, opponent_buildings);
         BitwiseGameState::fire_single_players_teslas_without_cleanup(opponent, opponent_buildings, player, player_buildings);
@@ -309,6 +328,9 @@ impl BitwiseGameState {
             tesla.age += 1;
             if tesla.cooldown > 0 {
                 tesla.cooldown -= 1;
+            } else if player.energy >= TESLA_FIRING_ENERGY && opponent_buildings.iron_curtain_remaining > 0 {
+                player.energy -= TESLA_FIRING_ENERGY;
+                tesla.cooldown = TESLA_COOLDOWN;
             } else if player.energy >= TESLA_FIRING_ENERGY {
                 player.energy -= TESLA_FIRING_ENERGY;
                 tesla.cooldown = TESLA_COOLDOWN;
@@ -351,7 +373,7 @@ impl BitwiseGameState {
         let mut damaging = 0;
         for _ in 0..MISSILE_SPEED {
             for missile in player_missiles.iter_mut() {
-                let swapping_sides = missile.0 & RIGHT_COL_MASK;
+                let swapping_sides = if opponent_buildings.iron_curtain_remaining > 0 { 0 } else { missile.0 & RIGHT_COL_MASK };
                 let about_to_hit_opponent = missile.1 & LEFT_COL_MASK;
 
                 missile.0 = (missile.0 & !RIGHT_COL_MASK) << 1;
@@ -426,7 +448,9 @@ impl PlayerBuildings {
             missile_towers: [0; MISSILE_COOLDOWN_STATES],
             firing_tower: 0,
             missiles: [(0,0); MISSILE_MAX_SINGLE_CELL],
-            tesla_cooldowns: ArrayVec::new()
+            tesla_cooldowns: ArrayVec::new(),
+            iron_curtain_available: false,
+            iron_curtain_remaining: 0
         }
     }
 
