@@ -16,7 +16,7 @@ use rayon::prelude::*;
 #[cfg(feature = "energy-cutoff")] pub const ENERGY_PRODUCTION_CUTOFF: u16 = 30;
 #[cfg(feature = "energy-cutoff")] pub const ENERGY_STORAGE_CUTOFF: u16 = 45;
 
-pub fn choose_move(state: &BitwiseGameState, start_time: &PreciseTime, max_time: Duration) -> Command {
+pub fn choose_move(state: &BitwiseGameState, start_time: PreciseTime, max_time: Duration) -> Command {
     let mut command_scores = CommandScore::init_command_scores(state);
     let command = simulate_options_to_timeout(&mut command_scores, state, start_time, max_time);
     
@@ -27,7 +27,7 @@ pub fn choose_move(state: &BitwiseGameState, start_time: &PreciseTime, max_time:
 }
 
 #[cfg(not(feature = "discard-poor-performers"))]
-fn simulate_options_to_timeout(command_scores: &'a mut Vec<CommandScore>, settings: &GameSettings, state: &BitwiseGameState, start_time: &PreciseTime, max_time: Duration) -> Option<&'a CommandScore> {
+fn simulate_options_to_timeout(command_scores: &'a mut Vec<CommandScore>, settings: &GameSettings, state: &BitwiseGameState, start_time: PreciseTime, max_time: Duration) -> Option<&'a CommandScore> {
     loop {
         simulate_all_options_once(command_scores, settings, state);
         if start_time.to(PreciseTime::now()) > max_time {
@@ -45,7 +45,7 @@ fn simulate_options_to_timeout(command_scores: &'a mut Vec<CommandScore>, settin
 }
 
 #[cfg(feature = "discard-poor-performers")]
-fn simulate_options_to_timeout<'a>(command_scores: &'a mut Vec<CommandScore>, state: &BitwiseGameState, start_time: &PreciseTime, max_time: Duration) -> Option<&'a CommandScore> {
+fn simulate_options_to_timeout<'a>(command_scores: &'a mut Vec<CommandScore>, state: &BitwiseGameState, start_time: PreciseTime, max_time: Duration) -> Option<&'a CommandScore> {
     use std::cmp;
     let min_options = cmp::min(command_scores.len(), 5);
     

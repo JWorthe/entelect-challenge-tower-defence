@@ -24,5 +24,5 @@ fn bitwise() {
         }
     };
     let max_time = Duration::milliseconds(MAX_TIME_MILLIS);
-    strategy::monte_carlo::choose_move(&state, &start_time, max_time);
+    strategy::monte_carlo::choose_move(&state, start_time, max_time);
 }

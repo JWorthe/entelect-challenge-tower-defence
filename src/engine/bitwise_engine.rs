@@ -5,8 +5,8 @@ use engine::status::GameStatus;
 
 use arrayvec::ArrayVec;
 
-const LEFT_COL_MASK: u64 = 0x0101010101010101;
-const RIGHT_COL_MASK: u64 = 0x8080808080808080;
+const LEFT_COL_MASK: u64 = 0x0101_0101_0101_0101;
+const RIGHT_COL_MASK: u64 = 0x8080_8080_8080_8080;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Player {
@@ -101,9 +101,9 @@ fn find_bit_index_from_rank(occupied: u64, i: u64) -> u8 {
     // Adapted from https://graphics.stanford.edu/~seander/bithacks.html#SelectPosFromMSBRank
     let v = !occupied;
     
-    let mut r = v.count_ones() as u64 - i as u64;
+    let mut r = u64::from(v.count_ones()) - i;
 
-    let a: u64 =  v - ((v >> 1) & !0u64/3);
+    let a: u64 =  v - ((v >> 1) & (!0u64/3));
     let b: u64 = (a & (!0u64/5)) + ((a >> 2) & (!0u64/5));
     let c: u64 = (b + (b >> 4)) & (!0u64/0x11);
     let d: u64 = (c + (c >> 8)) & (!0u64/0x101);
@@ -123,8 +123,7 @@ fn find_bit_index_from_rank(occupied: u64, i: u64) -> u8 {
     s -= (t.wrapping_sub(r) & 256) >> 8;
     s = 65 - s;
 
-    let bit = 64 - s as u8;
-    bit
+    64 - s as u8
 }
 
 impl BitwiseGameState {
@@ -281,7 +280,7 @@ impl BitwiseGameState {
                 }
                 if building_type == BuildingType::Tesla {
                     player_buildings.tesla_cooldowns.push(TeslaCooldown { 
-                        pos: pos,
+                        pos,
                         cooldown: 0,
                         age: 0
                     });
@@ -320,7 +319,7 @@ impl BitwiseGameState {
 
                 let x = tesla.pos.x();
                 let y = tesla.pos.y();
-                let missed_cells = ((SINGLE_MAP_WIDTH - x) as u32).saturating_sub(2);
+                let missed_cells = (u32::from(SINGLE_MAP_WIDTH - x)).saturating_sub(2);
                 
                 let top_row = y.saturating_sub(1);
                 let top_row_mask = 255u64 << (top_row * SINGLE_MAP_WIDTH);
@@ -330,7 +329,7 @@ impl BitwiseGameState {
                 for _ in 0..(if y == 0 || y == MAP_HEIGHT-1 { 2 } else { 3 }) {
                     hits |= destroy_mask & opponent_buildings.buildings[0];
                     destroy_mask &= !hits;
-                    destroy_mask = destroy_mask << SINGLE_MAP_WIDTH;
+                    destroy_mask <<= SINGLE_MAP_WIDTH;
                 }
                 BitwiseGameState::destroy_buildings(opponent_buildings, hits);
             }
@@ -339,7 +338,7 @@ impl BitwiseGameState {
 
     fn add_missiles(player_buildings: &mut PlayerBuildings) {
         let mut missiles = player_buildings.missile_towers[player_buildings.firing_tower];
-        for mut tier in player_buildings.missiles.iter_mut() {
+        for mut tier in &mut player_buildings.missiles {
             let setting = !tier.0 & missiles;
             tier.0 |= setting;
             missiles &= !setting;
@@ -351,19 +350,19 @@ impl BitwiseGameState {
         let mut destroyed = 0;
         let mut damaging = 0;
         for _ in 0..MISSILE_SPEED {
-            for i in 0..MISSILE_MAX_SINGLE_CELL {
-                let swapping_sides = player_missiles[i].0 & RIGHT_COL_MASK;
-                let about_to_hit_opponent = player_missiles[i].1 & LEFT_COL_MASK;
+            for missile in player_missiles.iter_mut() {
+                let swapping_sides = missile.0 & RIGHT_COL_MASK;
+                let about_to_hit_opponent = missile.1 & LEFT_COL_MASK;
 
-                player_missiles[i].0 = (player_missiles[i].0 & !RIGHT_COL_MASK) << 1;
-                player_missiles[i].1 = ((player_missiles[i].1 & !LEFT_COL_MASK) >> 1) | swapping_sides;
+                missile.0 = (missile.0 & !RIGHT_COL_MASK) << 1;
+                missile.1 = ((missile.1 & !LEFT_COL_MASK) >> 1) | swapping_sides;
 
                 damaging = (damaging << 1) | about_to_hit_opponent;
 
                 let mut hits = 0;
                 for health_tier in (0..DEFENCE_HEALTH).rev() {
-                    hits = opponent_buildings.buildings[health_tier] & player_missiles[i].1;
-                    player_missiles[i].1 &= !hits;
+                    hits = opponent_buildings.buildings[health_tier] & missile.1;
+                    missile.1 &= !hits;
                     opponent_buildings.buildings[health_tier] &= !hits;
                 }
                 destroyed |= hits;
@@ -380,10 +379,10 @@ impl BitwiseGameState {
         let deconstruct_mask = !hit_mask;
         
         buildings.energy_towers &= deconstruct_mask;
-        for tier in buildings.missile_towers.iter_mut() {
+        for tier in &mut buildings.missile_towers {
             *tier &= deconstruct_mask;
         }
-        for tier in buildings.buildings.iter_mut() {
+        for tier in &mut buildings.buildings {
             *tier &= deconstruct_mask;
         }
         buildings.occupied &= deconstruct_mask;

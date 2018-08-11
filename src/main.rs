@@ -34,7 +34,7 @@ fn main() {
             process::exit(1);
         }
     };
-    let command = strategy::monte_carlo::choose_move(&state, &start_time, max_time);
+    let command = strategy::monte_carlo::choose_move(&state, start_time, max_time);
 
     match write_command(COMMAND_PATH, command) {
         Ok(()) => {}

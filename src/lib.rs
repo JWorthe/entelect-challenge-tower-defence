@@ -1,3 +1,5 @@
+#![warn(clippy)]
+
 extern crate serde;
 extern crate serde_json;
 
