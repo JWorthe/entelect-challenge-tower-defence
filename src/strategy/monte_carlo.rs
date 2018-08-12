@@ -1,5 +1,4 @@
 use engine::command::*;
-use engine::geometry::*;
 use engine::status::GameStatus;
 use engine::bitwise_engine::{Player, BitwiseGameState};
 use engine::constants::*;
