@@ -116,21 +116,24 @@ fn simulate_to_endstate<R: Rng>(command_score: &mut CommandScore, state: &Bitwis
 
 fn random_player_move<R: Rng>(state: &BitwiseGameState, rng: &mut R) -> Command {
     let all_buildings = sensible_buildings(&state.player, &state.player_buildings, state.player_has_max_teslas());
-    random_move(&all_buildings, rng, state.unoccupied_player_cell_count(), |i| state.location_of_unoccupied_player_cell(i))
+    random_move(&all_buildings, state.player_can_build_iron_curtain(), rng, state.unoccupied_player_cell_count(), |i| state.location_of_unoccupied_player_cell(i))
 }
 
 fn random_opponent_move<R: Rng>(state: &BitwiseGameState, rng: &mut R) -> Command {
     let all_buildings = sensible_buildings(&state.opponent, &state.opponent_buildings, state.opponent_has_max_teslas());
-    random_move(&all_buildings, rng, state.unoccupied_opponent_cell_count(), |i| state.location_of_unoccupied_opponent_cell(i))
+    random_move(&all_buildings, state.opponent_can_build_iron_curtain(), rng, state.unoccupied_opponent_cell_count(), |i| state.location_of_unoccupied_opponent_cell(i))
 }
 
 // TODO: Given enough energy, most opponents won't do nothing
-fn random_move<R: Rng, F:Fn(usize)->Point>(all_buildings: &[BuildingType], rng: &mut R, free_positions_count: usize, get_point: F) -> Command {
+fn random_move<R: Rng, F:Fn(usize)->Point>(all_buildings: &[BuildingType], iron_curtain_available: bool, rng: &mut R, free_positions_count: usize, get_point: F) -> Command {
     let nothing_count = 1;
-    let building_choice_index = rng.gen_range(0, nothing_count + all_buildings.len());
+    let iron_curtain_count = if iron_curtain_available { 1 } else { 0 };
+    let building_choice_index = rng.gen_range(0, all_buildings.len() + nothing_count + iron_curtain_count);
     
     if building_choice_index == all_buildings.len() {
         Command::Nothing
+    } else if iron_curtain_available && building_choice_index == all_buildings.len() + 1 {
+        Command::IronCurtain
     } else {
         let position_choice = rng.gen_range(0, free_positions_count);
         Command::Build(

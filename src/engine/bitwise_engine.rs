@@ -87,6 +87,13 @@ impl BitwiseGameState {
     pub fn player_has_max_teslas(&self) -> bool { self.player_buildings.count_teslas() >= TESLA_MAX }
     pub fn opponent_has_max_teslas(&self) -> bool { self.opponent_buildings.count_teslas() >= TESLA_MAX }
 
+    pub fn player_can_build_iron_curtain(&self) -> bool {
+        self.player_buildings.iron_curtain_available && self.player_buildings.iron_curtain_remaining == 0 && self.player.energy >= IRON_CURTAIN_PRICE
+    }
+    pub fn opponent_can_build_iron_curtain(&self) -> bool {
+        self.opponent_buildings.iron_curtain_available && self.opponent_buildings.iron_curtain_remaining == 0 && self.opponent.energy >= IRON_CURTAIN_PRICE
+    }
+
     pub fn unoccupied_player_cell_count(&self) -> usize { self.player_buildings.occupied.count_zeros() as usize }
     pub fn unoccupied_opponent_cell_count(&self) -> usize { self.opponent_buildings.occupied.count_zeros() as usize }
     pub fn location_of_unoccupied_player_cell(&self, i: usize) -> Point  {
