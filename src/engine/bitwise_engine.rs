@@ -78,31 +78,6 @@ impl BitwiseGameState {
         self.update_status();
         self.status
     }
-
-    pub fn player_has_max_teslas(&self) -> bool { self.player.count_teslas() >= TESLA_MAX }
-    pub fn opponent_has_max_teslas(&self) -> bool { self.opponent.count_teslas() >= TESLA_MAX }
-
-    pub fn player_can_build_iron_curtain(&self) -> bool {
-        self.player.iron_curtain_available && self.player.iron_curtain_remaining == 0 && self.player.energy >= IRON_CURTAIN_PRICE
-    }
-    pub fn opponent_can_build_iron_curtain(&self) -> bool {
-        self.opponent.iron_curtain_available && self.opponent.iron_curtain_remaining == 0 && self.opponent.energy >= IRON_CURTAIN_PRICE
-    }
-
-    pub fn unoccupied_player_cell_count(&self) -> usize { self.player.occupied.count_zeros() as usize }
-    pub fn unoccupied_opponent_cell_count(&self) -> usize { self.opponent.occupied.count_zeros() as usize }
-    pub fn location_of_unoccupied_player_cell(&self, i: usize) -> Point  {
-        let bit = find_bit_index_from_rank(self.player.occupied, i as u64);
-        let point = Point { index: bit };
-        debug_assert!(point.to_either_bitfield() & self.player.occupied == 0);
-        point
-    }
-    pub fn location_of_unoccupied_opponent_cell(&self, i: usize) -> Point {
-        let bit = find_bit_index_from_rank(self.opponent.occupied, i as u64);
-        let point = Point { index: bit };
-        debug_assert!(point.to_either_bitfield() & self.opponent.occupied == 0);
-        point
-    }
 }
 
 fn find_bit_index_from_rank(occupied: u64, i: u64) -> u8 {
@@ -147,9 +122,8 @@ impl BitwiseGameState {
     }
 
     /**
-     * Like with the expressive, this is to make things more
-     * comparable when writing tests, not for actual use in the
-     * engine.
+     * This is to make things more comparable when writing tests, not
+     * for actual use in the engine.
      */
     #[cfg(debug_assertions)]
     pub fn sort(&mut self) {
@@ -462,5 +436,21 @@ impl Player {
 
     pub fn energy_generated(&self) -> u16 {
         ENERGY_GENERATED_BASE + self.energy_towers.count_ones() as u16 * ENERGY_GENERATED_TOWER
+    }
+
+    pub fn has_max_teslas(&self) -> bool {
+        self.count_teslas() >= TESLA_MAX
+    }
+
+    pub fn can_build_iron_curtain(&self) -> bool {
+        self.iron_curtain_available && self.iron_curtain_remaining == 0 && self.energy >= IRON_CURTAIN_PRICE
+    }
+
+    pub fn unoccupied_cell_count(&self) -> usize { self.occupied.count_zeros() as usize }
+    pub fn location_of_unoccupied_cell(&self, i: usize) -> Point  {
+        let bit = find_bit_index_from_rank(self.occupied, i as u64);
+        let point = Point { index: bit };
+        debug_assert!(point.to_either_bitfield() & self.occupied == 0);
+        point
     }
 }

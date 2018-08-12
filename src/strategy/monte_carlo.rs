@@ -92,7 +92,7 @@ fn simulate_all_options_once(command_scores: &mut[CommandScore], state: &Bitwise
 fn simulate_to_endstate<R: Rng>(command_score: &mut CommandScore, state: &BitwiseGameState, rng: &mut R) {
     let mut state_mut = state.clone();
     
-    let opponent_first = random_opponent_move(&state_mut, rng);
+    let opponent_first = random_move(&state_mut.opponent, rng);
     let mut status = state_mut.simulate(command_score.command, opponent_first);
     
     for _ in 0..MAX_MOVES {
@@ -100,8 +100,8 @@ fn simulate_to_endstate<R: Rng>(command_score: &mut CommandScore, state: &Bitwis
             break;
         }
 
-        let player_command = random_player_move(&state_mut, rng);
-        let opponent_command = random_opponent_move(&state_mut, rng);
+        let player_command = random_move(&state_mut.player, rng);
+        let opponent_command = random_move(&state_mut.opponent, rng);
         status = state_mut.simulate(player_command, opponent_command);
     }
 
@@ -114,30 +114,23 @@ fn simulate_to_endstate<R: Rng>(command_score: &mut CommandScore, state: &Bitwis
     }
 }
 
-fn random_player_move<R: Rng>(state: &BitwiseGameState, rng: &mut R) -> Command {
-    let all_buildings = sensible_buildings(&state.player, state.player_has_max_teslas());
-    random_move(&all_buildings, state.player_can_build_iron_curtain(), rng, state.unoccupied_player_cell_count(), |i| state.location_of_unoccupied_player_cell(i))
-}
-
-fn random_opponent_move<R: Rng>(state: &BitwiseGameState, rng: &mut R) -> Command {
-    let all_buildings = sensible_buildings(&state.opponent, state.opponent_has_max_teslas());
-    random_move(&all_buildings, state.opponent_can_build_iron_curtain(), rng, state.unoccupied_opponent_cell_count(), |i| state.location_of_unoccupied_opponent_cell(i))
-}
-
 // TODO: Given enough energy, most opponents won't do nothing
-fn random_move<R: Rng, F:Fn(usize)->Point>(all_buildings: &[BuildingType], iron_curtain_available: bool, rng: &mut R, free_positions_count: usize, get_point: F) -> Command {
+fn random_move<R: Rng>(player: &Player, rng: &mut R) -> Command {
+    let all_buildings = sensible_buildings(player);
     let nothing_count = 1;
-    let iron_curtain_count = if iron_curtain_available { 1 } else { 0 };
+    let iron_curtain_count = if player.can_build_iron_curtain() { 1 } else { 0 };
+    let free_positions_count = player.unoccupied_cell_count();
+        
     let building_choice_index = rng.gen_range(0, all_buildings.len() + nothing_count + iron_curtain_count);
     
     if building_choice_index == all_buildings.len() {
         Command::Nothing
-    } else if iron_curtain_available && building_choice_index == all_buildings.len() + 1 {
+    } else if iron_curtain_count > 0 && building_choice_index == all_buildings.len() + 1 {
         Command::IronCurtain
     } else if free_positions_count > 0 {
         let position_choice = rng.gen_range(0, free_positions_count);
         Command::Build(
-            get_point(position_choice),
+            player.location_of_unoccupied_cell(position_choice),
             all_buildings[building_choice_index]
         )
     } else {
@@ -199,15 +192,15 @@ impl CommandScore {
 
     //TODO: Devalue nothing so that it doesn't stand and do nothing when it can do things
     fn init_command_scores(state: &BitwiseGameState) -> Vec<CommandScore> {
-        let all_buildings = sensible_buildings(&state.player, state.player_has_max_teslas());
+        let all_buildings = sensible_buildings(&state.player);
 
-        let unoccupied_cells = (0..state.unoccupied_player_cell_count()).map(|i| state.location_of_unoccupied_player_cell(i));
+        let unoccupied_cells = (0..state.player.unoccupied_cell_count()).map(|i| state.player.location_of_unoccupied_cell(i));
 
         let building_command_count = unoccupied_cells.len()*all_buildings.len();
         
         let mut commands = Vec::with_capacity(building_command_count + 2);
         commands.push(CommandScore::new(Command::Nothing));
-        if state.player_can_build_iron_curtain() {
+        if state.player.can_build_iron_curtain() {
             commands.push(CommandScore::new(Command::IronCurtain));
         }
 
@@ -222,7 +215,7 @@ impl CommandScore {
 }
 
 #[cfg(not(feature = "energy-cutoff"))]
-fn sensible_buildings(player: &Player, has_max_teslas: bool) -> Vec<BuildingType> {
+fn sensible_buildings(player: &Player) -> Vec<BuildingType> {
     let mut result = Vec::with_capacity(4);
 
     if DEFENCE_PRICE <= player.energy {
@@ -234,7 +227,7 @@ fn sensible_buildings(player: &Player, has_max_teslas: bool) -> Vec<BuildingType
     if ENERGY_PRICE <= player.energy {
         result.push(BuildingType::Energy);
     }
-    if TESLA_PRICE <= player.energy && !has_max_teslas {
+    if TESLA_PRICE <= player.energy && !player.has_max_teslas() {
         result.push(BuildingType::Tesla);
     }
 
@@ -245,7 +238,7 @@ fn sensible_buildings(player: &Player, has_max_teslas: bool) -> Vec<BuildingType
 //TODO: Heuristic that avoids building the initial energy towers all in the same row? Max energy in a row?
 //TODO: Update cutoff to maybe build iron curtains
 #[cfg(feature = "energy-cutoff")]
-fn sensible_buildings(player: &Player, has_max_teslas: bool) -> Vec<BuildingType> {
+fn sensible_buildings(player: &Player) -> Vec<BuildingType> {
     let mut result = Vec::with_capacity(4);
     let needs_energy = player.energy_generated() <= ENERGY_PRODUCTION_CUTOFF ||
         player.energy <= ENERGY_STORAGE_CUTOFF;
@@ -259,7 +252,7 @@ fn sensible_buildings(player: &Player, has_max_teslas: bool) -> Vec<BuildingType
     if ENERGY_PRICE <= player.energy && needs_energy {
         result.push(BuildingType::Energy);
     }
-    if TESLA_PRICE <= player.energy && !has_max_teslas {
+    if TESLA_PRICE <= player.energy && !player.has_max_teslas() {
         result.push(BuildingType::Tesla);
     }
     
