@@ -134,12 +134,14 @@ fn random_move<R: Rng, F:Fn(usize)->Point>(all_buildings: &[BuildingType], iron_
         Command::Nothing
     } else if iron_curtain_available && building_choice_index == all_buildings.len() + 1 {
         Command::IronCurtain
-    } else {
+    } else if free_positions_count > 0 {
         let position_choice = rng.gen_range(0, free_positions_count);
         Command::Build(
             get_point(position_choice),
             all_buildings[building_choice_index]
         )
+    } else {
+        Command::Nothing
     }
 }
 
@@ -202,10 +204,12 @@ impl CommandScore {
         let unoccupied_cells = (0..state.unoccupied_player_cell_count()).map(|i| state.location_of_unoccupied_player_cell(i));
 
         let building_command_count = unoccupied_cells.len()*all_buildings.len();
-        let nothing_count = 1;
         
-        let mut commands = Vec::with_capacity(building_command_count + nothing_count);
+        let mut commands = Vec::with_capacity(building_command_count + 2);
         commands.push(CommandScore::new(Command::Nothing));
+        if state.player_can_build_iron_curtain() {
+            commands.push(CommandScore::new(Command::IronCurtain));
+        }
 
         for position in unoccupied_cells {
             for &building in &all_buildings {
@@ -238,7 +242,7 @@ fn sensible_buildings(player: &Player, _player_buildings: &PlayerBuildings, has_
 }
 
 
-//TODO: Heuristic that avoids building the initial energy towers all in the same row?
+//TODO: Heuristic that avoids building the initial energy towers all in the same row? Max energy in a row?
 //TODO: Update cutoff to maybe build iron curtains
 #[cfg(feature = "energy-cutoff")]
 fn sensible_buildings(player: &Player, player_buildings: &PlayerBuildings, has_max_teslas: bool) -> Vec<BuildingType> {

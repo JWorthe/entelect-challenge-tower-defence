@@ -13,6 +13,17 @@ fn it_successfully_simulates_replay() {
     test_from_replay(&Path::new("tests/v300_normal_towers"));
 }
 
+#[test]
+fn it_successfully_simulates_replay_with_iron_curtain() {
+    test_from_replay(&Path::new("tests/v300_iron_curtain"));
+}
+
+#[test]
+fn it_successfully_simulates_replay_with_iron_curtain_with_teslas() {
+    test_from_replay(&Path::new("tests/v300_iron_curtain_with_teslas"));
+}
+
+
 fn test_from_replay(replay_folder: &Path) {
     let length = replay_folder.read_dir().unwrap().count()-1;
         
@@ -46,6 +57,8 @@ fn read_player_command(filename: &str) -> Command {
         let action_type = components.next().unwrap().trim().parse().unwrap();
         if action_type == 3 {
             Command::Deconstruct(point)
+        } else if action_type == 5 {
+            Command::IronCurtain
         } else {
             Command::Build(point, BuildingType::from_u8(action_type).unwrap())
         }
