@@ -116,9 +116,10 @@ fn simulate_to_endstate<R: Rng>(command_score: &mut CommandScore, state: &Bitwis
 
 fn random_move<R: Rng>(player: &Player, rng: &mut R) -> Command {
     let all_buildings = sensible_buildings(player);
-    let nothing_count = if all_buildings.len() > 2 { 1 } else { 0 };
-    let iron_curtain_count = if player.can_build_iron_curtain() { 1 } else { 0 };
     let free_positions_count = player.unoccupied_cell_count();
+    
+    let nothing_count = if all_buildings.len() > 2 && free_positions_count > 0 { 0 } else { 1 };
+    let iron_curtain_count = if player.can_build_iron_curtain() { 1 } else { 0 };
         
     let building_choice_index = rng.gen_range(0, all_buildings.len() + nothing_count + iron_curtain_count);
 
