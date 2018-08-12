@@ -64,11 +64,11 @@ impl BitwiseGameState {
 
         BitwiseGameState::update_construction(&mut self.player_buildings);
         BitwiseGameState::update_construction(&mut self.opponent_buildings);
-       
-        BitwiseGameState::fire_teslas(&mut self.player, &mut self.player_buildings, &mut self.opponent, &mut self.opponent_buildings);
 
         BitwiseGameState::add_missiles(&mut self.player_buildings);
         BitwiseGameState::add_missiles(&mut self.opponent_buildings);
+
+        BitwiseGameState::fire_teslas(&mut self.player, &mut self.player_buildings, &mut self.opponent, &mut self.opponent_buildings);
 
         BitwiseGameState::move_and_collide_missiles(&mut self.player, &mut self.player_buildings, &mut self.opponent_buildings.missiles);
         BitwiseGameState::move_and_collide_missiles(&mut self.opponent, &mut self.opponent_buildings, &mut self.player_buildings.missiles);
@@ -78,7 +78,7 @@ impl BitwiseGameState {
 
         BitwiseGameState::update_iron_curtain(&mut self.player_buildings, self.round);
         BitwiseGameState::update_iron_curtain(&mut self.opponent_buildings, self.round);
-        
+
         self.round += 1;
 
         self.update_status();
