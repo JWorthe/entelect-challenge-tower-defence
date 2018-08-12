@@ -1,8 +1,5 @@
 use engine::constants::*;
 
-//TODO: Change Point to be a single number, or stored as a bitfield
-// (bitfield to x and y for writing move might be hard?
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Point {
     pub index: u8

@@ -72,28 +72,11 @@ struct MissileState {
 
 impl State {
     fn to_bitwise_engine(&self) -> bitwise_engine::BitwiseGameState {
-        let json_player = self.player();
-        let json_opponent = self.opponent();
         let mut player = bitwise_engine::Player::empty();
         let mut opponent = bitwise_engine::Player::empty();
 
-        // TODO roll the player into the playerbuildings and remove this duplication
-        player.health = json_player.health;
-        player.energy = json_player.energy;
-        player.iron_curtain_available = json_player.iron_curtain_available;
-        player.iron_curtain_remaining = if json_player.active_iron_curtain_lifetime < 0 {
-            0
-        } else {
-            json_player.active_iron_curtain_lifetime as u8
-        };
-        opponent.health = json_opponent.health;
-        opponent.energy = json_opponent.energy;
-        opponent.iron_curtain_available = json_opponent.iron_curtain_available;
-        opponent.iron_curtain_remaining = if json_opponent.active_iron_curtain_lifetime < 0 {
-            0
-        } else {
-            json_opponent.active_iron_curtain_lifetime as u8
-        };
+        self.player().map_onto_engine(&mut player);
+        self.opponent().map_onto_engine(&mut opponent);
         
         for row in &self.game_map {
             for cell in row {
@@ -190,5 +173,19 @@ impl BuildingState {
             "TESLA" => command::BuildingType::Tesla,
             _ => command::BuildingType::Defence,
         }
+    }
+}
+
+
+impl Player {
+    fn map_onto_engine(&self, engine_player: &mut bitwise_engine::Player) {
+        engine_player.health = self.health;
+        engine_player.energy = self.energy;
+        engine_player.iron_curtain_available = self.iron_curtain_available;
+        engine_player.iron_curtain_remaining = if self.active_iron_curtain_lifetime < 0 {
+            0
+        } else {
+            self.active_iron_curtain_lifetime as u8
+        };
     }
 }

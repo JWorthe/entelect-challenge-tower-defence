@@ -12,6 +12,7 @@ use time::{Duration, PreciseTime};
 #[cfg(not(feature = "single-threaded"))]
 use rayon::prelude::*;
 
+//TODO Rethink / adjust these?
 #[cfg(feature = "energy-cutoff")] pub const ENERGY_PRODUCTION_CUTOFF: u16 = 100;
 #[cfg(feature = "energy-cutoff")] pub const ENERGY_STORAGE_CUTOFF: u16 = 100;
 
@@ -235,7 +236,6 @@ fn sensible_buildings(player: &Player) -> Vec<BuildingType> {
 
 
 //TODO: Heuristic that avoids building the initial energy towers all in the same row? Max energy in a row?
-//TODO: Update cutoff to maybe build iron curtains
 #[cfg(feature = "energy-cutoff")]
 fn sensible_buildings(player: &Player) -> Vec<BuildingType> {
     let mut result = Vec::with_capacity(4);
