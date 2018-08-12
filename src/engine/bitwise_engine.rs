@@ -21,6 +21,7 @@ pub struct BitwiseGameState {
     pub opponent: Player,
     pub player_buildings: PlayerBuildings,
     pub opponent_buildings: PlayerBuildings,
+    pub round: u16
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -64,8 +65,8 @@ impl BitwiseGameState {
         BitwiseGameState::update_construction(&mut self.player_buildings);
         BitwiseGameState::update_construction(&mut self.opponent_buildings);
 
-        BitwiseGameState::update_iron_curtain(&mut self.player_buildings);
-        BitwiseGameState::update_iron_curtain(&mut self.opponent_buildings);
+        BitwiseGameState::update_iron_curtain(&mut self.player_buildings, self.round);
+        BitwiseGameState::update_iron_curtain(&mut self.opponent_buildings, self.round);
         
         BitwiseGameState::fire_teslas(&mut self.player, &mut self.player_buildings, &mut self.opponent, &mut self.opponent_buildings);
 
@@ -77,6 +78,8 @@ impl BitwiseGameState {
 
         BitwiseGameState::add_energy(&mut self.player, &mut self.player_buildings);
         BitwiseGameState::add_energy(&mut self.opponent, &mut self.opponent_buildings);
+
+        self.round += 1;
 
         self.update_status();
         self.status
@@ -142,12 +145,14 @@ fn find_bit_index_from_rank(occupied: u64, i: u64) -> u8 {
 impl BitwiseGameState {
     pub fn new(
         player: Player, opponent: Player,
-        player_buildings: PlayerBuildings, opponent_buildings: PlayerBuildings
+        player_buildings: PlayerBuildings, opponent_buildings: PlayerBuildings,
+        round: u16
     ) -> BitwiseGameState {
         BitwiseGameState {
             status: GameStatus::Continue,
             player, opponent,
-            player_buildings, opponent_buildings
+            player_buildings, opponent_buildings,
+            round
         }
     }
 
@@ -316,9 +321,11 @@ impl BitwiseGameState {
         player_buildings.unconstructed.truncate(buildings_len);
     }
 
-    fn update_iron_curtain(player_buildings: &mut PlayerBuildings) {
-        //TODO: Get in current round and set available to true
-        player_buildings.iron_curtain_remaining -= 1;
+    fn update_iron_curtain(player_buildings: &mut PlayerBuildings, round: u16) {
+        if round != 0 && round % IRON_CURTAIN_UNLOCK_INTERVAL == 0 {
+            player_buildings.iron_curtain_available = true;
+        }
+        player_buildings.iron_curtain_remaining = player_buildings.iron_curtain_remaining.saturating_sub(1);
     }
     
     fn fire_teslas(player: &mut Player, player_buildings: &mut PlayerBuildings, opponent: &mut Player, opponent_buildings: &mut PlayerBuildings) {

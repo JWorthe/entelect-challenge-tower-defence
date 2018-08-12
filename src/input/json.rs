@@ -21,8 +21,15 @@ pub fn read_bitwise_state_from_file(filename: &str) -> Result<bitwise_engine::Bi
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct State {
+    game_details: GameDetails,
     players: Vec<Player>,
     game_map: Vec<Vec<GameCell>>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct GameDetails {
+    round: u16
 }
 
 #[derive(Deserialize)]
@@ -149,7 +156,8 @@ impl State {
             
         bitwise_engine::BitwiseGameState::new(
             player, opponent,
-            player_buildings, opponent_buildings
+            player_buildings, opponent_buildings,
+            self.game_details.round
         )
     }
 
