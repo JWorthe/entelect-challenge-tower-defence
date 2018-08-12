@@ -73,26 +73,27 @@ struct MissileState {
 impl State {
     fn to_bitwise_engine(&self) -> bitwise_engine::BitwiseGameState {
         let json_player = self.player();
-        let player = json_player.to_bitwise_engine();
         let json_opponent = self.opponent();
-        let opponent = json_opponent.to_bitwise_engine();
-        let mut player_buildings = bitwise_engine::PlayerBuildings::empty();
-        let mut opponent_buildings = bitwise_engine::PlayerBuildings::empty();
+        let mut player = bitwise_engine::Player::empty();
+        let mut opponent = bitwise_engine::Player::empty();
 
         // TODO roll the player into the playerbuildings and remove this duplication
-        player_buildings.iron_curtain_available = json_player.iron_curtain_available;
-        player_buildings.iron_curtain_remaining = if json_player.active_iron_curtain_lifetime < 0 {
+        player.health = json_player.health;
+        player.energy = json_player.energy;
+        player.iron_curtain_available = json_player.iron_curtain_available;
+        player.iron_curtain_remaining = if json_player.active_iron_curtain_lifetime < 0 {
             0
         } else {
             json_player.active_iron_curtain_lifetime as u8
         };
-        opponent_buildings.iron_curtain_available = json_opponent.iron_curtain_available;
-        opponent_buildings.iron_curtain_remaining = if json_opponent.active_iron_curtain_lifetime < 0 {
+        opponent.health = json_opponent.health;
+        opponent.energy = json_opponent.energy;
+        opponent.iron_curtain_available = json_opponent.iron_curtain_available;
+        opponent.iron_curtain_remaining = if json_opponent.active_iron_curtain_lifetime < 0 {
             0
         } else {
             json_opponent.active_iron_curtain_lifetime as u8
         };
-
         
         for row in &self.game_map {
             for cell in row {
@@ -101,9 +102,9 @@ impl State {
                     let building_type = building.convert_building_type();
                     
                     let mut bitwise_buildings = if building.player_type == 'A' {
-                        &mut player_buildings
+                        &mut player
                     } else {
-                        &mut opponent_buildings
+                        &mut opponent
                     };
                     let bitfield = point.to_either_bitfield();
 
@@ -138,9 +139,9 @@ impl State {
                 for missile in &cell.missiles {
                     let (mut left, mut right) = engine::geometry::Point::new_double_bitfield(cell.x, cell.y, missile.player_type == 'A');
                     let mut bitwise_buildings = if missile.player_type == 'A' {
-                        &mut player_buildings
+                        &mut player
                     } else {
-                        &mut opponent_buildings
+                        &mut opponent
                     };
 
                     for mut tier in bitwise_buildings.missiles.iter_mut() {
@@ -156,7 +157,6 @@ impl State {
             
         bitwise_engine::BitwiseGameState::new(
             player, opponent,
-            player_buildings, opponent_buildings,
             self.game_details.round
         )
     }
@@ -171,15 +171,6 @@ impl State {
         self.players.iter()
             .find(|p| p.player_type == 'B')
             .expect("Opponent character did not appear in state.json")
-    }
-}
-
-impl Player {
-    fn to_bitwise_engine(&self) -> engine::bitwise_engine::Player {
-        engine::bitwise_engine::Player {
-            energy: self.energy,
-            health: self.health
-        }
     }
 }
 

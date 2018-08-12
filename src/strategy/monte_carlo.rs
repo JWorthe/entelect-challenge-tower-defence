@@ -1,7 +1,7 @@
 use engine::command::*;
 use engine::geometry::*;
 use engine::status::GameStatus;
-use engine::bitwise_engine::{Player, PlayerBuildings, BitwiseGameState};
+use engine::bitwise_engine::{Player, BitwiseGameState};
 use engine::constants::*;
 
 use rand::{Rng, XorShiftRng, SeedableRng};
@@ -115,12 +115,12 @@ fn simulate_to_endstate<R: Rng>(command_score: &mut CommandScore, state: &Bitwis
 }
 
 fn random_player_move<R: Rng>(state: &BitwiseGameState, rng: &mut R) -> Command {
-    let all_buildings = sensible_buildings(&state.player, &state.player_buildings, state.player_has_max_teslas());
+    let all_buildings = sensible_buildings(&state.player, state.player_has_max_teslas());
     random_move(&all_buildings, state.player_can_build_iron_curtain(), rng, state.unoccupied_player_cell_count(), |i| state.location_of_unoccupied_player_cell(i))
 }
 
 fn random_opponent_move<R: Rng>(state: &BitwiseGameState, rng: &mut R) -> Command {
-    let all_buildings = sensible_buildings(&state.opponent, &state.opponent_buildings, state.opponent_has_max_teslas());
+    let all_buildings = sensible_buildings(&state.opponent, state.opponent_has_max_teslas());
     random_move(&all_buildings, state.opponent_can_build_iron_curtain(), rng, state.unoccupied_opponent_cell_count(), |i| state.location_of_unoccupied_opponent_cell(i))
 }
 
@@ -199,7 +199,7 @@ impl CommandScore {
 
     //TODO: Devalue nothing so that it doesn't stand and do nothing when it can do things
     fn init_command_scores(state: &BitwiseGameState) -> Vec<CommandScore> {
-        let all_buildings = sensible_buildings(&state.player, &state.player_buildings, state.player_has_max_teslas());
+        let all_buildings = sensible_buildings(&state.player, state.player_has_max_teslas());
 
         let unoccupied_cells = (0..state.unoccupied_player_cell_count()).map(|i| state.location_of_unoccupied_player_cell(i));
 
@@ -222,7 +222,7 @@ impl CommandScore {
 }
 
 #[cfg(not(feature = "energy-cutoff"))]
-fn sensible_buildings(player: &Player, _player_buildings: &PlayerBuildings, has_max_teslas: bool) -> Vec<BuildingType> {
+fn sensible_buildings(player: &Player, has_max_teslas: bool) -> Vec<BuildingType> {
     let mut result = Vec::with_capacity(4);
 
     if DEFENCE_PRICE <= player.energy {
@@ -245,9 +245,9 @@ fn sensible_buildings(player: &Player, _player_buildings: &PlayerBuildings, has_
 //TODO: Heuristic that avoids building the initial energy towers all in the same row? Max energy in a row?
 //TODO: Update cutoff to maybe build iron curtains
 #[cfg(feature = "energy-cutoff")]
-fn sensible_buildings(player: &Player, player_buildings: &PlayerBuildings, has_max_teslas: bool) -> Vec<BuildingType> {
+fn sensible_buildings(player: &Player, has_max_teslas: bool) -> Vec<BuildingType> {
     let mut result = Vec::with_capacity(4);
-    let needs_energy = player_buildings.energy_generated() <= ENERGY_PRODUCTION_CUTOFF ||
+    let needs_energy = player.energy_generated() <= ENERGY_PRODUCTION_CUTOFF ||
         player.energy <= ENERGY_STORAGE_CUTOFF;
 
     if DEFENCE_PRICE <= player.energy {
