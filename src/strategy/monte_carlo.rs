@@ -114,25 +114,23 @@ fn simulate_to_endstate<R: Rng>(command_score: &mut CommandScore, state: &Bitwis
     }
 }
 
-// TODO: Given enough energy, most opponents won't do nothing
 fn random_move<R: Rng>(player: &Player, rng: &mut R) -> Command {
     let all_buildings = sensible_buildings(player);
-    let nothing_count = 1;
+    let nothing_count = if all_buildings.len() > 2 { 1 } else { 0 };
     let iron_curtain_count = if player.can_build_iron_curtain() { 1 } else { 0 };
     let free_positions_count = player.unoccupied_cell_count();
         
     let building_choice_index = rng.gen_range(0, all_buildings.len() + nothing_count + iron_curtain_count);
-    
-    if building_choice_index == all_buildings.len() {
-        Command::Nothing
-    } else if iron_curtain_count > 0 && building_choice_index == all_buildings.len() + 1 {
-        Command::IronCurtain
-    } else if free_positions_count > 0 {
+
+    if building_choice_index < all_buildings.len() && free_positions_count > 0 {
         let position_choice = rng.gen_range(0, free_positions_count);
         Command::Build(
             player.location_of_unoccupied_cell(position_choice),
             all_buildings[building_choice_index]
         )
+    }
+    else if iron_curtain_count > 0 && building_choice_index == all_buildings.len() {
+        Command::IronCurtain
     } else {
         Command::Nothing
     }
