@@ -19,9 +19,11 @@ proptest = "0.8.4"
 [features]
 benchmarking = []
 single-threaded = []
-energy-cutoff = []
+debug-decisions = []
 reduced-time = []
 extended-time = []
+
+energy-cutoff = []
 discard-poor-performers = []
 
 default = ["energy-cutoff", "discard-poor-performers"]

@@ -3,6 +3,8 @@ use engine::status::GameStatus;
 use engine::bitwise_engine::{Player, BitwiseGameState};
 use engine::constants::*;
 
+use std::fmt;
+
 use rand::{Rng, XorShiftRng, SeedableRng};
 
 const MAX_MOVES: u16 = 400;
@@ -18,12 +20,28 @@ use rayon::prelude::*;
 
 pub fn choose_move(state: &BitwiseGameState, start_time: PreciseTime, max_time: Duration) -> Command {
     let mut command_scores = CommandScore::init_command_scores(state);
-    let command = simulate_options_to_timeout(&mut command_scores, state, start_time, max_time);
-    
-    match command {
-        Some(command) => command.command,
-        _ => Command::Nothing
+
+    let command = {
+        let best_command_score = simulate_options_to_timeout(&mut command_scores, state, start_time, max_time);
+        match best_command_score {
+            Some(best_command_score) => best_command_score.command,
+            _ => Command::Nothing
+        }
+    };
+
+    #[cfg(feature = "benchmarking")]
+    {
+        let total_iterations: u32 = command_scores.iter().map(|c| c.attempts).sum();
+        println!("Iterations: {}", total_iterations);
     }
+    #[cfg(feature = "debug-decisions")]
+    {
+        for score in command_scores {
+            println!("{}", score);
+        }
+    }
+
+    command
 }
 
 #[cfg(not(feature = "discard-poor-performers"))]
@@ -34,13 +52,6 @@ fn simulate_options_to_timeout(command_scores: &'a mut Vec<CommandScore>, settin
             break;
         }
     }
-
-    #[cfg(feature = "benchmarking")]
-    {
-        let total_iterations: u32 = command_scores.iter().map(|c| c.attempts).sum();
-        println!("Iterations: {}", total_iterations);
-    }
-
     command_scores.iter().max_by_key(|&c| c.win_ratio())
 }
 
@@ -61,13 +72,6 @@ fn simulate_options_to_timeout<'a>(command_scores: &'a mut Vec<CommandScore>, st
         }
         active_scores.sort_unstable_by_key(|c| -c.win_ratio());
     }
-
-    #[cfg(feature = "benchmarking")]
-    {
-        let total_iterations: u32 = command_scores.iter().map(|c| c.attempts).sum();
-        println!("Iterations: {}", total_iterations);
-    }
-
     command_scores.first()
 }
 
@@ -214,6 +218,13 @@ impl CommandScore {
     }
 }
 
+impl fmt::Display for CommandScore {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{},{}", self.command, self.win_ratio())
+    }
+}
+
+
 #[cfg(not(feature = "energy-cutoff"))]
 fn sensible_buildings(player: &Player) -> Vec<BuildingType> {
     let mut result = Vec::with_capacity(4);
@@ -233,7 +244,6 @@ fn sensible_buildings(player: &Player) -> Vec<BuildingType> {
 
     result
 }
-
 
 //TODO: Heuristic that avoids building the initial energy towers all in the same row? Max energy in a row?
 #[cfg(feature = "energy-cutoff")]
