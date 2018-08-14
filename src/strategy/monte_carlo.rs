@@ -105,7 +105,8 @@ fn simulate_to_endstate<R: Rng>(command_score: &mut CommandScore, state: &Bitwis
         status = state_mut.simulate(player_command, opponent_command);
     }
 
-    let next_seed = [rng.next_u32(), rng.next_u32(), rng.next_u32(), rng.next_u32()];
+    let mut next_seed: [u8;16] = [0; 16];
+    rng.fill_bytes(&mut next_seed);
     match status {
         GameStatus::PlayerWon => command_score.add_victory(next_seed),
         GameStatus::OpponentWon => command_score.add_defeat(next_seed),
@@ -145,7 +146,7 @@ struct CommandScore {
     draws: u32,
     stalemates: u32,
     attempts: u32,
-    next_seed: [u32; 4]
+    next_seed: [u8; 16]
 }
 
 impl CommandScore {
@@ -157,29 +158,29 @@ impl CommandScore {
             draws: 0,
             stalemates: 0,
             attempts: 0,
-            next_seed: [0x7b6a_e1f4, 0x413c_e90f, 0x6781_6799, 0x770a_6bda]
+            next_seed: [0x7b, 0x6a, 0xe1, 0xf4, 0x41, 0x3c, 0xe9, 0x0f, 0x67, 0x81, 0x67, 0x99, 0x77, 0x0a, 0x6b, 0xda]
         }
     }
 
-    fn add_victory(&mut self, next_seed: [u32; 4]) {
+    fn add_victory(&mut self, next_seed: [u8; 16]) {
         self.victories += 1;
         self.attempts += 1;
         self.next_seed = next_seed;
     }
 
-    fn add_defeat(&mut self, next_seed: [u32; 4]) {
+    fn add_defeat(&mut self, next_seed: [u8; 16]) {
         self.defeats += 1;
         self.attempts += 1;
         self.next_seed = next_seed;
     }
 
-    fn add_draw(&mut self, next_seed: [u32; 4]) {
+    fn add_draw(&mut self, next_seed: [u8; 16]) {
         self.draws += 1;
         self.attempts += 1;
         self.next_seed = next_seed;
     }
 
-    fn add_stalemate(&mut self, next_seed: [u32; 4]) {
+    fn add_stalemate(&mut self, next_seed: [u8; 16]) {
         self.stalemates += 1;
         self.attempts += 1;
         self.next_seed = next_seed;
