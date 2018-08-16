@@ -8,6 +8,7 @@ use std::fmt;
 use rand::{Rng, XorShiftRng, SeedableRng};
 
 const MAX_MOVES: u16 = 400;
+const INIT_SEED: [u8;16] = [0x7b, 0x6a, 0xe1, 0xf4, 0x41, 0x3c, 0xe9, 0x0f, 0x67, 0x81, 0x67, 0x99, 0x77, 0x0a, 0x6b, 0xda];
 
 use time::{Duration, PreciseTime};
 
@@ -162,7 +163,19 @@ impl CommandScore {
             draws: 0,
             stalemates: 0,
             attempts: 0,
-            next_seed: [0x7b, 0x6a, 0xe1, 0xf4, 0x41, 0x3c, 0xe9, 0x0f, 0x67, 0x81, 0x67, 0x99, 0x77, 0x0a, 0x6b, 0xda]
+            next_seed: INIT_SEED
+        }
+    }
+
+    fn with_seeded_stalemate(command: Command) -> CommandScore {
+        CommandScore {
+            command,
+            victories: 0,
+            defeats: 0,
+            draws: 0,
+            stalemates: 0,
+            attempts: 1,
+            next_seed: INIT_SEED
         }
     }
 
@@ -194,7 +207,6 @@ impl CommandScore {
         (self.victories as i32 - self.defeats as i32) * 10000 / (self.attempts as i32)
     }
 
-    //TODO: Devalue nothing so that it doesn't stand and do nothing when it can do things
     fn init_command_scores(state: &BitwiseGameState) -> Vec<CommandScore> {
         let all_buildings = sensible_buildings(&state.player);
 
@@ -203,7 +215,7 @@ impl CommandScore {
         let building_command_count = unoccupied_cells.len()*all_buildings.len();
         
         let mut commands = Vec::with_capacity(building_command_count + 2);
-        commands.push(CommandScore::new(Command::Nothing));
+        commands.push(CommandScore::with_seeded_stalemate(Command::Nothing));
         if state.player.can_build_iron_curtain() {
             commands.push(CommandScore::new(Command::IronCurtain));
         }
