@@ -1,7 +1,7 @@
 use std::fmt;
 use super::geometry::Point;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Command {
     Nothing,
     Build(Point, BuildingType),

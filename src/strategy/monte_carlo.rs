@@ -1,6 +1,7 @@
 use engine::command::*;
 use engine::status::GameStatus;
 use engine::bitwise_engine::{Player, BitwiseGameState};
+use engine::geometry::*;
 use engine::constants::*;
 
 use std::fmt;
@@ -37,12 +38,50 @@ pub fn choose_move(state: &BitwiseGameState, start_time: PreciseTime, max_time: 
     }
     #[cfg(feature = "debug-decisions")]
     {
-        for score in command_scores {
-            println!("{}", score);
-        }
+        debug_print_choices("ENERGY", &command_scores, |score| match score.command {
+            Command::Build(p, BuildingType::Energy) => Some((p, score.win_ratio())),
+            _ => None
+        });
+        debug_print_choices("ATTACK", &command_scores, |score| match score.command {
+            Command::Build(p, BuildingType::Attack) => Some((p, score.win_ratio())),
+            _ => None
+        });
+        debug_print_choices("DEFENCE", &command_scores, |score| match score.command {
+            Command::Build(p, BuildingType::Defence) => Some((p, score.win_ratio())),
+            _ => None
+        });
+        debug_print_choices("TESLA", &command_scores, |score| match score.command {
+            Command::Build(p, BuildingType::Tesla) => Some((p, score.win_ratio())),
+            _ => None
+        });
+        
+        println!("NOTHING");
+        println!("{}", command_scores.iter().find(|c| c.command == Command::Nothing).map(|s| s.win_ratio()).unwrap_or(0));
+        println!("");
+
+        println!("IRON CURTAIN");
+        println!("{}", command_scores.iter().find(|c| c.command == Command::IronCurtain).map(|s| s.win_ratio()).unwrap_or(0));
+        println!("");
     }
 
     command
+}
+
+#[cfg(feature = "debug-decisions")]
+fn debug_print_choices<F: FnMut(&CommandScore) -> Option<(Point, i32)>>(label: &str, command_scores: &[CommandScore], extractor: F) {
+    println!("{}", label);
+    let relevant_moves: Vec<(Point, i32)>  = command_scores.iter()
+        .filter_map(extractor)
+        .collect();
+    for y in 0..MAP_HEIGHT {
+        for x in 0..SINGLE_MAP_WIDTH {
+            let point = Point::new(x, y);
+            let score = relevant_moves.iter().find(|(p, _)| *p == point);
+            print!(" | {}", score.map(|(_,s)| s).cloned().unwrap_or(0));
+        }
+        println!(" |");
+    }
+    println!("");
 }
 
 #[cfg(not(feature = "discard-poor-performers"))]
