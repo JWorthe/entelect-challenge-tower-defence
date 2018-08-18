@@ -26,6 +26,8 @@ pub const ENERGY_GENERATED_TOWER: u16 = 3;
 pub const ENERGY_PRICE: u16 = 20;
 pub const ENERGY_CONSTRUCTION_TIME: u8 = 1;
 
+pub const ENERGY_MAX_IN_ROW: u32 = 2;
+
 pub const IRON_CURTAIN_PRICE: u16 = 100;
 pub const IRON_CURTAIN_UNLOCK_INTERVAL: u16 = 30;
 pub const IRON_CURTAIN_DURATION: u8 = 6;

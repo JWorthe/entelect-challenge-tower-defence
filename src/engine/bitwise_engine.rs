@@ -453,4 +453,29 @@ impl Player {
         debug_assert!(point.to_either_bitfield() & self.occupied == 0);
         point
     }
+
+    pub fn energy_occupied_energy_with_heuristics(&self) -> u64 {
+        let mut result = 0;
+        for y in 0..MAP_HEIGHT {
+            let mask = 255 << y*SINGLE_MAP_WIDTH;
+            let isolated_row = self.energy_towers & mask;
+            let row_count = isolated_row.count_ones();
+            result |= if row_count > ENERGY_MAX_IN_ROW {
+                mask
+            } else {
+                self.occupied & mask
+            };
+        }
+        result
+    }
+
+    pub fn unoccupied_energy_cell_count(&self) -> usize {
+        self.energy_occupied_energy_with_heuristics().count_zeros() as usize
+    }
+    pub fn location_of_unoccupied_energy_cell(&self, i: usize) -> Point  {
+        let bit = find_bit_index_from_rank(self.energy_occupied_energy_with_heuristics(), i as u64);
+        let point = Point { index: bit };
+        debug_assert!(point.to_either_bitfield() & self.occupied == 0);
+        point
+    }
 }

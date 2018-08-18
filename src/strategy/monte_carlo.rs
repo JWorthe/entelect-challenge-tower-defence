@@ -1,7 +1,6 @@
 use engine::command::*;
 use engine::status::GameStatus;
 use engine::bitwise_engine::{Player, BitwiseGameState};
-use engine::geometry::*;
 use engine::constants::*;
 
 use std::fmt;
@@ -162,13 +161,24 @@ fn simulate_to_endstate<R: Rng>(command_score: &mut CommandScore, state: &Bitwis
 fn random_move<R: Rng>(player: &Player, rng: &mut R) -> Command {
     let all_buildings = sensible_buildings(player);
     let free_positions_count = player.unoccupied_cell_count();
+    let unoccupied_energy_cell_count = player.unoccupied_energy_cell_count();
     
     let nothing_count = if all_buildings.len() > 2 && free_positions_count > 0 { 0 } else { 1 };
     let iron_curtain_count = if player.can_build_iron_curtain() { 1 } else { 0 };
         
     let building_choice_index = rng.gen_range(0, all_buildings.len() + nothing_count + iron_curtain_count);
 
-    if building_choice_index < all_buildings.len() && free_positions_count > 0 {
+    if building_choice_index < all_buildings.len()
+        && all_buildings[building_choice_index] == BuildingType::Energy
+        && unoccupied_energy_cell_count > 0 {
+        let position_choice = rng.gen_range(0, unoccupied_energy_cell_count);
+        Command::Build(
+            player.location_of_unoccupied_energy_cell(position_choice),
+            BuildingType::Energy
+        )
+
+    }
+    else if building_choice_index < all_buildings.len() && free_positions_count > 0 {
         let position_choice = rng.gen_range(0, free_positions_count);
         Command::Build(
             player.location_of_unoccupied_cell(position_choice),
@@ -249,7 +259,8 @@ impl CommandScore {
     fn init_command_scores(state: &BitwiseGameState) -> Vec<CommandScore> {
         let all_buildings = sensible_buildings(&state.player);
 
-        let unoccupied_cells = (0..state.player.unoccupied_cell_count()).map(|i| state.player.location_of_unoccupied_cell(i));
+        let unoccupied_cells = (0..state.player.unoccupied_cell_count()).map(|i| state.player.location_of_unoccupied_cell(i)).collect::<Vec<_>>();
+        let unoccupied_energy_cells = (0..state.player.unoccupied_energy_cell_count()).map(|i| state.player.location_of_unoccupied_energy_cell(i)).collect::<Vec<_>>();
 
         let building_command_count = unoccupied_cells.len()*all_buildings.len();
         
@@ -259,9 +270,11 @@ impl CommandScore {
             commands.push(CommandScore::new(Command::IronCurtain));
         }
 
-        for position in unoccupied_cells {
-            for &building in &all_buildings {
-                commands.push(CommandScore::new(Command::Build(position, building)));
+        for &building in &all_buildings {
+            let cells = if building == BuildingType::Energy { &unoccupied_energy_cells } else { &unoccupied_cells };
+            for position in cells {
+
+                commands.push(CommandScore::new(Command::Build(*position, building)));
             }
         }
 
@@ -296,7 +309,6 @@ fn sensible_buildings(player: &Player) -> Vec<BuildingType> {
     result
 }
 
-//TODO: Heuristic that avoids building the initial energy towers all in the same row? Max energy in a row?
 #[cfg(feature = "energy-cutoff")]
 fn sensible_buildings(player: &Player) -> Vec<BuildingType> {
     let mut result = Vec::with_capacity(4);
