@@ -7,6 +7,8 @@ use std::fmt;
 
 use rand::{Rng, XorShiftRng, SeedableRng};
 
+use arrayvec::ArrayVec;
+
 const MAX_MOVES: u16 = 400;
 const INIT_SEED: [u8;16] = [0x7b, 0x6a, 0xe1, 0xf4, 0x41, 0x3c, 0xe9, 0x0f, 0x67, 0x81, 0x67, 0x99, 0x77, 0x0a, 0x6b, 0xda];
 
@@ -159,18 +161,24 @@ fn simulate_to_endstate<R: Rng>(command_score: &mut CommandScore, state: &Bitwis
 }
 
 fn random_move<R: Rng>(player: &Player, rng: &mut R) -> Command {
-    let all_buildings = sensible_buildings(player);
     let free_positions_count = player.unoccupied_cell_count();
     let unoccupied_energy_cell_count = player.unoccupied_energy_cell_count();
-    
-    let nothing_count = if all_buildings.len() > 2 && free_positions_count > 0 { 0 } else { 1 };
+
+    let open_energy_spot = unoccupied_energy_cell_count > 0;
+    let open_building_spot = free_positions_count > 0;
+
+    let all_buildings = sensible_buildings(player, open_building_spot, open_energy_spot);
+
     let iron_curtain_count = if player.can_build_iron_curtain() { 1 } else { 0 };
-        
+    //TODO: This appears to make things much slower. Or maybe games last longer?
+    let nothing_count = 1;//if all_buildings.len() + iron_curtain_count > 0 { 0 } else { 1 };
+
     let building_choice_index = rng.gen_range(0, all_buildings.len() + nothing_count + iron_curtain_count);
 
-    if building_choice_index < all_buildings.len()
-        && all_buildings[building_choice_index] == BuildingType::Energy
-        && unoccupied_energy_cell_count > 0 {
+    let choice_is_building = building_choice_index < all_buildings.len();
+    let choice_is_energy = choice_is_building && all_buildings[building_choice_index] == BuildingType::Energy;
+
+    if choice_is_energy {
         let position_choice = rng.gen_range(0, unoccupied_energy_cell_count);
         Command::Build(
             player.location_of_unoccupied_energy_cell(position_choice),
@@ -178,7 +186,7 @@ fn random_move<R: Rng>(player: &Player, rng: &mut R) -> Command {
         )
 
     }
-    else if building_choice_index < all_buildings.len() && free_positions_count > 0 {
+    else if choice_is_building {
         let position_choice = rng.gen_range(0, free_positions_count);
         Command::Build(
             player.location_of_unoccupied_cell(position_choice),
@@ -257,10 +265,14 @@ impl CommandScore {
     }
 
     fn init_command_scores(state: &BitwiseGameState) -> Vec<CommandScore> {
-        let all_buildings = sensible_buildings(&state.player);
-
         let unoccupied_cells = (0..state.player.unoccupied_cell_count()).map(|i| state.player.location_of_unoccupied_cell(i)).collect::<Vec<_>>();
         let unoccupied_energy_cells = (0..state.player.unoccupied_energy_cell_count()).map(|i| state.player.location_of_unoccupied_energy_cell(i)).collect::<Vec<_>>();
+
+        let open_building_spot = unoccupied_cells.len() > 0;
+        let open_energy_spot = unoccupied_energy_cells.len() > 0;
+
+        
+        let all_buildings = sensible_buildings(&state.player, open_building_spot, open_energy_spot);
 
         let building_command_count = unoccupied_cells.len()*all_buildings.len();
         
@@ -290,8 +302,11 @@ impl fmt::Display for CommandScore {
 
 
 #[cfg(not(feature = "energy-cutoff"))]
-fn sensible_buildings(player: &Player) -> Vec<BuildingType> {
-    let mut result = Vec::with_capacity(4);
+fn sensible_buildings(player: &Player, open_building_spot: bool, open_energy_spot: bool) -> ArrayVec<[BuildingType;4]> {
+    let mut result = ArrayVec::new();
+    if !open_building_spot {
+        return result;
+    }
 
     if DEFENCE_PRICE <= player.energy {
         result.push(BuildingType::Defence);
@@ -299,7 +314,7 @@ fn sensible_buildings(player: &Player) -> Vec<BuildingType> {
     if MISSILE_PRICE <= player.energy {
         result.push(BuildingType::Attack);
     }
-    if ENERGY_PRICE <= player.energy {
+    if ENERGY_PRICE <= player.energy && open_energy_spot {
         result.push(BuildingType::Energy);
     }
     if TESLA_PRICE <= player.energy && !player.has_max_teslas() {
@@ -310,8 +325,12 @@ fn sensible_buildings(player: &Player) -> Vec<BuildingType> {
 }
 
 #[cfg(feature = "energy-cutoff")]
-fn sensible_buildings(player: &Player) -> Vec<BuildingType> {
-    let mut result = Vec::with_capacity(4);
+fn sensible_buildings(player: &Player, open_building_spot: bool, open_energy_spot: bool) -> ArrayVec<[BuildingType;4]> {
+    let mut result = ArrayVec::new();
+    if !open_building_spot {
+        return result;
+    }
+
     let needs_energy = player.energy_generated() <= ENERGY_PRODUCTION_CUTOFF ||
         player.energy <= ENERGY_STORAGE_CUTOFF;
 
@@ -321,7 +340,7 @@ fn sensible_buildings(player: &Player) -> Vec<BuildingType> {
     if MISSILE_PRICE <= player.energy {
         result.push(BuildingType::Attack);
     }
-    if ENERGY_PRICE <= player.energy && needs_energy {
+    if ENERGY_PRICE <= player.energy && open_energy_spot && needs_energy {
         result.push(BuildingType::Energy);
     }
     if TESLA_PRICE <= player.energy && !player.has_max_teslas() {

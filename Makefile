@@ -11,9 +11,7 @@ profile:
 	cargo build --release --features "benchmarking single-threaded extended-time"
 	mkdir -p target/profile
 	perf record -g target/release/perf-test
-	perf script > target/profile/out.perf
-	../FlameGraph/stackcollapse-perf.pl target/profile/out.perf > target/profile/out.folded
-	../FlameGraph/flamegraph.pl target/profile/out.folded > target/profile/flamegraph.svg
+	perf report
 
 clean:
 	cargo clean
