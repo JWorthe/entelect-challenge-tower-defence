@@ -169,9 +169,8 @@ fn random_move<R: Rng>(player: &Player, rng: &mut R) -> Command {
 
     let all_buildings = sensible_buildings(player, open_building_spot, open_energy_spot);
 
-    let iron_curtain_count = if player.can_build_iron_curtain() { 1 } else { 0 };
-    //TODO: This appears to make things much slower. Or maybe games last longer?
-    let nothing_count = 1;//if all_buildings.len() + iron_curtain_count > 0 { 0 } else { 1 };
+    let iron_curtain_count = if player.can_build_iron_curtain() { 5 } else { 0 };
+    let nothing_count = 1;
 
     let building_choice_index = rng.gen_range(0, all_buildings.len() + nothing_count + iron_curtain_count);
 
@@ -193,10 +192,10 @@ fn random_move<R: Rng>(player: &Player, rng: &mut R) -> Command {
             all_buildings[building_choice_index]
         )
     }
-    else if iron_curtain_count > 0 && building_choice_index == all_buildings.len() {
-        Command::IronCurtain
+    else if building_choice_index == all_buildings.len() {
+        Command::Nothing        
     } else {
-        Command::Nothing
+        Command::IronCurtain
     }
 }
 
@@ -277,7 +276,7 @@ impl CommandScore {
         let building_command_count = unoccupied_cells.len()*all_buildings.len();
         
         let mut commands = Vec::with_capacity(building_command_count + 2);
-        commands.push(CommandScore::with_seeded_stalemate(Command::Nothing));
+        commands.push(CommandScore::new(Command::Nothing));
         if state.player.can_build_iron_curtain() {
             commands.push(CommandScore::new(Command::IronCurtain));
         }
