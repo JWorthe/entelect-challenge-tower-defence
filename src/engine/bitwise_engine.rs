@@ -53,14 +53,14 @@ pub struct TeslaCooldown {
 
 impl BitwiseGameState {
     pub fn simulate(&mut self, player_command: Command, opponent_command: Command) -> GameStatus {
-        BitwiseGameState::perform_command(&mut self.player, player_command);
-        BitwiseGameState::perform_command(&mut self.opponent, opponent_command);
+        self.player.perform_command(player_command);
+        self.opponent.perform_command(opponent_command);
 
-        BitwiseGameState::update_construction(&mut self.player);
-        BitwiseGameState::update_construction(&mut self.opponent);
+        self.player.update_construction();
+        self.opponent.update_construction();
 
-        BitwiseGameState::add_missiles(&mut self.player);
-        BitwiseGameState::add_missiles(&mut self.opponent);
+        self.player.add_missiles();
+        self.opponent.add_missiles();
 
         BitwiseGameState::fire_teslas(&mut self.player, &mut self.opponent);
 
@@ -181,110 +181,6 @@ impl BitwiseGameState {
         res
     }
 
-    fn perform_command(player: &mut Player, command: Command) {
-        match command {
-            Command::Nothing => {},
-            Command::Build(p, b) => {
-                let bitfield = p.to_either_bitfield();
-
-                let price = match b {
-                    BuildingType::Attack => MISSILE_PRICE,
-                    BuildingType::Defence => DEFENCE_PRICE,
-                    BuildingType::Energy => ENERGY_PRICE,
-                    BuildingType::Tesla => TESLA_PRICE,
-                };
-                let construction_time = match b {
-                    BuildingType::Attack => MISSILE_CONSTRUCTION_TIME,
-                    BuildingType::Defence => DEFENCE_CONSTRUCTION_TIME,
-                    BuildingType::Energy => ENERGY_CONSTRUCTION_TIME,
-                    BuildingType::Tesla => TESLA_CONSTRUCTION_TIME,
-                };
-
-                // This is used internally. I should not be making
-                // invalid moves!
-                debug_assert!(player.buildings[0] & bitfield == 0);
-                debug_assert!(p.x() < FULL_MAP_WIDTH && p.y() < MAP_HEIGHT);
-                debug_assert!(player.energy >= price);
-                debug_assert!(b != BuildingType::Tesla ||
-                              player.count_teslas() < TESLA_MAX);
-
-                player.energy -= price;
-                player.unconstructed.push(UnconstructedBuilding {
-                    pos: p,
-                    construction_time_left: construction_time,
-                    building_type: b
-                });
-                player.occupied |= bitfield;
-            },
-            Command::Deconstruct(p) => {
-                let unconstructed_to_remove_index = player.unconstructed.iter().position(|ref b| b.pos == p);
-                let deconstruct_mask = !(p.to_either_bitfield() & player.buildings[0]);
-                
-                debug_assert!(deconstruct_mask != 0 || unconstructed_to_remove_index.is_some());
-                
-                if let Some(i) = unconstructed_to_remove_index {
-                    player.unconstructed.swap_remove(i);
-                }
-                
-                player.energy += DECONSTRUCT_ENERGY;
-                
-                for tier in 0..player.buildings.len() {
-                    player.buildings[tier] &= deconstruct_mask;
-                }
-                player.energy_towers &= deconstruct_mask;
-                for tier in 0..player.missile_towers.len() {
-                    player.missile_towers[tier] &= deconstruct_mask;
-                }
-                player.tesla_cooldowns.retain(|t| t.pos != p);
-                player.occupied &= deconstruct_mask;
-            },
-            Command::IronCurtain => {
-                debug_assert!(player.iron_curtain_available);
-                debug_assert!(player.energy >= IRON_CURTAIN_PRICE);
-
-                player.energy -= IRON_CURTAIN_PRICE;
-                player.iron_curtain_available = false;
-                player.iron_curtain_remaining = IRON_CURTAIN_DURATION;
-            }
-        }
-    }
-
-    fn update_construction(player: &mut Player) {
-        let mut buildings_len = player.unconstructed.len();
-        for i in (0..buildings_len).rev() {
-            if player.unconstructed[i].construction_time_left == 0 {
-                let building_type = player.unconstructed[i].building_type;
-                let health = if building_type == BuildingType::Defence { DEFENCE_HEALTH } else { 1 };
-                
-                let pos = player.unconstructed[i].pos;
-                let bitfield = pos.to_either_bitfield();
-                
-                for health_tier in 0..health {
-                    player.buildings[health_tier] |= bitfield;
-                }
-                if building_type == BuildingType::Energy {
-                    player.energy_towers |= bitfield;
-                }
-                if building_type == BuildingType::Attack {
-                    player.missile_towers[player.firing_tower] |= bitfield;
-                }
-                if building_type == BuildingType::Tesla {
-                    player.tesla_cooldowns.push(TeslaCooldown { 
-                        pos,
-                        cooldown: 0,
-                        age: 0
-                    });
-                }
-                
-                buildings_len -= 1;
-                player.unconstructed.swap(i, buildings_len);
-            } else {
-                player.unconstructed[i].construction_time_left -= 1
-            }
-        }
-        player.unconstructed.truncate(buildings_len);
-    }
-
     fn update_iron_curtain(player: &mut Player, round: u16) {
         if round != 0 && round % IRON_CURTAIN_UNLOCK_INTERVAL == 0 {
             player.iron_curtain_available = true;
@@ -334,16 +230,6 @@ impl BitwiseGameState {
                 BitwiseGameState::destroy_buildings(opponent, hits);
             }
         }
-    }
-
-    fn add_missiles(player: &mut Player) {
-        let mut missiles = player.missile_towers[player.firing_tower];
-        for mut tier in &mut player.missiles {
-            let setting = !tier.0 & missiles;
-            tier.0 |= setting;
-            missiles &= !setting;
-        }
-        player.firing_tower = (player.firing_tower + 1) % MISSILE_COOLDOWN_STATES;
     }
 
     fn move_and_collide_missiles(opponent: &mut Player, player_missiles: &mut [(u64, u64); MISSILE_MAX_SINGLE_CELL]) {
@@ -452,5 +338,120 @@ impl Player {
         let point = Point { index: bit };
         debug_assert!(point.to_either_bitfield() & self.occupied == 0);
         point
+    }
+
+
+    fn perform_command(&mut self, command: Command) {
+        match command {
+            Command::Nothing => {},
+            Command::Build(p, b) => {
+                let bitfield = p.to_either_bitfield();
+
+                let price = match b {
+                    BuildingType::Attack => MISSILE_PRICE,
+                    BuildingType::Defence => DEFENCE_PRICE,
+                    BuildingType::Energy => ENERGY_PRICE,
+                    BuildingType::Tesla => TESLA_PRICE,
+                };
+                let construction_time = match b {
+                    BuildingType::Attack => MISSILE_CONSTRUCTION_TIME,
+                    BuildingType::Defence => DEFENCE_CONSTRUCTION_TIME,
+                    BuildingType::Energy => ENERGY_CONSTRUCTION_TIME,
+                    BuildingType::Tesla => TESLA_CONSTRUCTION_TIME,
+                };
+
+                // This is used internally. I should not be making
+                // invalid moves!
+                debug_assert!(self.buildings[0] & bitfield == 0);
+                debug_assert!(p.x() < FULL_MAP_WIDTH && p.y() < MAP_HEIGHT);
+                debug_assert!(self.energy >= price);
+                debug_assert!(b != BuildingType::Tesla ||
+                              self.count_teslas() < TESLA_MAX);
+
+                self.energy -= price;
+                self.unconstructed.push(UnconstructedBuilding {
+                    pos: p,
+                    construction_time_left: construction_time,
+                    building_type: b
+                });
+                self.occupied |= bitfield;
+            },
+            Command::Deconstruct(p) => {
+                let unconstructed_to_remove_index = self.unconstructed.iter().position(|ref b| b.pos == p);
+                let deconstruct_mask = !(p.to_either_bitfield() & self.buildings[0]);
+
+                debug_assert!(deconstruct_mask != 0 || unconstructed_to_remove_index.is_some());
+
+                if let Some(i) = unconstructed_to_remove_index {
+                    self.unconstructed.swap_remove(i);
+                }
+
+                self.energy += DECONSTRUCT_ENERGY;
+
+                for tier in 0..self.buildings.len() {
+                    self.buildings[tier] &= deconstruct_mask;
+                }
+                self.energy_towers &= deconstruct_mask;
+                for tier in 0..self.missile_towers.len() {
+                    self.missile_towers[tier] &= deconstruct_mask;
+                }
+                self.tesla_cooldowns.retain(|t| t.pos != p);
+                self.occupied &= deconstruct_mask;
+            },
+            Command::IronCurtain => {
+                debug_assert!(self.iron_curtain_available);
+                debug_assert!(self.energy >= IRON_CURTAIN_PRICE);
+
+                self.energy -= IRON_CURTAIN_PRICE;
+                self.iron_curtain_available = false;
+                self.iron_curtain_remaining = IRON_CURTAIN_DURATION;
+            }
+        }
+    }
+
+    fn update_construction(&mut self) {
+        let mut buildings_len = self.unconstructed.len();
+        for i in (0..buildings_len).rev() {
+            if self.unconstructed[i].construction_time_left == 0 {
+                let building_type = self.unconstructed[i].building_type;
+                let health = if building_type == BuildingType::Defence { DEFENCE_HEALTH } else { 1 };
+
+                let pos = self.unconstructed[i].pos;
+                let bitfield = pos.to_either_bitfield();
+
+                for health_tier in 0..health {
+                    self.buildings[health_tier] |= bitfield;
+                }
+                if building_type == BuildingType::Energy {
+                    self.energy_towers |= bitfield;
+                }
+                if building_type == BuildingType::Attack {
+                    self.missile_towers[self.firing_tower] |= bitfield;
+                }
+                if building_type == BuildingType::Tesla {
+                    self.tesla_cooldowns.push(TeslaCooldown {
+                        pos,
+                        cooldown: 0,
+                        age: 0
+                    });
+                }
+
+                buildings_len -= 1;
+                self.unconstructed.swap(i, buildings_len);
+            } else {
+                self.unconstructed[i].construction_time_left -= 1
+            }
+        }
+        self.unconstructed.truncate(buildings_len);
+    }
+
+    fn add_missiles(&mut self) {
+        let mut missiles = self.missile_towers[self.firing_tower];
+        for mut tier in &mut self.missiles {
+            let setting = !tier.0 & missiles;
+            tier.0 |= setting;
+            missiles &= !setting;
+        }
+        self.firing_tower = (self.firing_tower + 1) % MISSILE_COOLDOWN_STATES;
     }
 }
