@@ -376,28 +376,6 @@ impl Player {
                 });
                 self.occupied |= bitfield;
             },
-            Command::Deconstruct(p) => {
-                let unconstructed_to_remove_index = self.unconstructed.iter().position(|ref b| b.pos == p);
-                let deconstruct_mask = !(p.to_either_bitfield() & self.buildings[0]);
-
-                debug_assert!(deconstruct_mask != 0 || unconstructed_to_remove_index.is_some());
-
-                if let Some(i) = unconstructed_to_remove_index {
-                    self.unconstructed.swap_remove(i);
-                }
-
-                self.energy += DECONSTRUCT_ENERGY;
-
-                for tier in 0..self.buildings.len() {
-                    self.buildings[tier] &= deconstruct_mask;
-                }
-                self.energy_towers &= deconstruct_mask;
-                for tier in 0..self.missile_towers.len() {
-                    self.missile_towers[tier] &= deconstruct_mask;
-                }
-                self.tesla_cooldowns.retain(|t| t.pos != p);
-                self.occupied &= deconstruct_mask;
-            },
             Command::IronCurtain => {
                 debug_assert!(self.iron_curtain_available);
                 debug_assert!(self.energy >= IRON_CURTAIN_PRICE);

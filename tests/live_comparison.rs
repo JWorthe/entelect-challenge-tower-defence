@@ -55,9 +55,7 @@ fn read_player_command(filename: &str) -> Command {
         let point = Point::new(components.next().unwrap().trim().parse().unwrap(),
                                components.next().unwrap().trim().parse().unwrap());
         let action_type = components.next().unwrap().trim().parse().unwrap();
-        if action_type == 3 {
-            Command::Deconstruct(point)
-        } else if action_type == 5 {
+        if action_type == 5 {
             Command::IronCurtain
         } else {
             Command::Build(point, BuildingType::from_u8(action_type).unwrap())
