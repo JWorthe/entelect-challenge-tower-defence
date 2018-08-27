@@ -2,6 +2,7 @@ use engine::command::*;
 use engine::status::GameStatus;
 use engine::bitwise_engine::{Player, BitwiseGameState};
 use engine::constants::*;
+use engine::geometry::*;
 
 use std::fmt;
 
@@ -18,7 +19,7 @@ use time::{Duration, PreciseTime};
 use rayon::prelude::*;
 
 //TODO Rethink / adjust these?
-#[cfg(feature = "energy-cutoff")] pub const ENERGY_PRODUCTION_CUTOFF: u16 = 100;
+#[cfg(feature = "energy-cutoff")] pub const ENERGY_PRODUCTION_CUTOFF: u16 = 50;
 #[cfg(feature = "energy-cutoff")] pub const ENERGY_STORAGE_CUTOFF: u16 = 100;
 
 pub fn choose_move(state: &BitwiseGameState, start_time: PreciseTime, max_time: Duration) -> Command {
@@ -162,30 +163,17 @@ fn simulate_to_endstate<R: Rng>(command_score: &mut CommandScore, state: &Bitwis
 
 fn random_move<R: Rng>(player: &Player, rng: &mut R) -> Command {
     let free_positions_count = player.unoccupied_cell_count();
-    let unoccupied_energy_cell_count = player.unoccupied_energy_cell_count();
 
-    let open_energy_spot = unoccupied_energy_cell_count > 0;
     let open_building_spot = free_positions_count > 0;
 
-    let all_buildings = sensible_buildings(player, open_building_spot, open_energy_spot);
+    let all_buildings = sensible_buildings(player, open_building_spot);
 
     let iron_curtain_count = if player.can_build_iron_curtain() { 5 } else { 0 };
     let nothing_count = 1;
 
     let building_choice_index = rng.gen_range(0, all_buildings.len() + nothing_count + iron_curtain_count);
 
-    let choice_is_building = building_choice_index < all_buildings.len();
-    let choice_is_energy = choice_is_building && all_buildings[building_choice_index] == BuildingType::Energy;
-
-    if choice_is_energy {
-        let position_choice = rng.gen_range(0, unoccupied_energy_cell_count);
-        Command::Build(
-            player.location_of_unoccupied_energy_cell(position_choice),
-            BuildingType::Energy
-        )
-
-    }
-    else if choice_is_building {
+    if building_choice_index < all_buildings.len() {
         let position_choice = rng.gen_range(0, free_positions_count);
         Command::Build(
             player.location_of_unoccupied_cell(position_choice),
@@ -223,18 +211,6 @@ impl CommandScore {
         }
     }
 
-    fn with_seeded_stalemate(command: Command) -> CommandScore {
-        CommandScore {
-            command,
-            victories: 0,
-            defeats: 0,
-            draws: 0,
-            stalemates: 0,
-            attempts: 1,
-            next_seed: INIT_SEED
-        }
-    }
-
     fn add_victory(&mut self, next_seed: [u8; 16]) {
         self.victories += 1;
         self.attempts += 1;
@@ -264,14 +240,13 @@ impl CommandScore {
     }
 
     fn init_command_scores(state: &BitwiseGameState) -> Vec<CommandScore> {
-        let unoccupied_cells = (0..state.player.unoccupied_cell_count()).map(|i| state.player.location_of_unoccupied_cell(i)).collect::<Vec<_>>();
-        let unoccupied_energy_cells = (0..state.player.unoccupied_energy_cell_count()).map(|i| state.player.location_of_unoccupied_energy_cell(i)).collect::<Vec<_>>();
+        let unoccupied_cells_count = state.player.unoccupied_cell_count();
+        let unoccupied_cells = (0..unoccupied_cells_count)
+            .map(|i| state.player.location_of_unoccupied_cell(i));
 
-        let open_building_spot = unoccupied_cells.len() > 0;
-        let open_energy_spot = unoccupied_energy_cells.len() > 0;
-
+        let open_building_spot = unoccupied_cells_count > 0;
         
-        let all_buildings = sensible_buildings(&state.player, open_building_spot, open_energy_spot);
+        let all_buildings = sensible_buildings(&state.player, open_building_spot);
 
         let building_command_count = unoccupied_cells.len()*all_buildings.len();
         
@@ -281,11 +256,9 @@ impl CommandScore {
             commands.push(CommandScore::new(Command::IronCurtain));
         }
 
-        for &building in &all_buildings {
-            let cells = if building == BuildingType::Energy { &unoccupied_energy_cells } else { &unoccupied_cells };
-            for position in cells {
-
-                commands.push(CommandScore::new(Command::Build(*position, building)));
+        for position in unoccupied_cells {
+            for &building in &all_buildings {
+                commands.push(CommandScore::new(Command::Build(position, building)));
             }
         }
 
@@ -301,7 +274,7 @@ impl fmt::Display for CommandScore {
 
 
 #[cfg(not(feature = "energy-cutoff"))]
-fn sensible_buildings(player: &Player, open_building_spot: bool, open_energy_spot: bool) -> ArrayVec<[BuildingType;4]> {
+fn sensible_buildings(player: &Player, open_building_spot: bool) -> ArrayVec<[BuildingType;4]> {
     let mut result = ArrayVec::new();
     if !open_building_spot {
         return result;
@@ -313,7 +286,7 @@ fn sensible_buildings(player: &Player, open_building_spot: bool, open_energy_spo
     if MISSILE_PRICE <= player.energy {
         result.push(BuildingType::Attack);
     }
-    if ENERGY_PRICE <= player.energy && open_energy_spot {
+    if ENERGY_PRICE <= player.energy {
         result.push(BuildingType::Energy);
     }
     if TESLA_PRICE <= player.energy && !player.has_max_teslas() {
@@ -324,7 +297,7 @@ fn sensible_buildings(player: &Player, open_building_spot: bool, open_energy_spo
 }
 
 #[cfg(feature = "energy-cutoff")]
-fn sensible_buildings(player: &Player, open_building_spot: bool, open_energy_spot: bool) -> ArrayVec<[BuildingType;4]> {
+fn sensible_buildings(player: &Player, open_building_spot: bool) -> ArrayVec<[BuildingType;4]> {
     let mut result = ArrayVec::new();
     if !open_building_spot {
         return result;
@@ -339,7 +312,7 @@ fn sensible_buildings(player: &Player, open_building_spot: bool, open_energy_spo
     if MISSILE_PRICE <= player.energy {
         result.push(BuildingType::Attack);
     }
-    if ENERGY_PRICE <= player.energy && open_energy_spot && needs_energy {
+    if ENERGY_PRICE <= player.energy && needs_energy {
         result.push(BuildingType::Energy);
     }
     if TESLA_PRICE <= player.energy && !player.has_max_teslas() {

@@ -34,8 +34,6 @@ pub struct Player {
 
     pub iron_curtain_available: bool,
     pub iron_curtain_remaining: u8,
-
-    pub energy_towers_with_heuristics: u64,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -74,9 +72,6 @@ impl BitwiseGameState {
 
         BitwiseGameState::update_iron_curtain(&mut self.player, self.round);
         BitwiseGameState::update_iron_curtain(&mut self.opponent, self.round);
-
-        self.player.update_energy_towers_with_heuristics();
-        self.opponent.update_energy_towers_with_heuristics();
 
         self.round += 1;
 
@@ -436,7 +431,6 @@ impl Player {
             tesla_cooldowns: ArrayVec::new(),
             iron_curtain_available: false,
             iron_curtain_remaining: 0,
-            energy_towers_with_heuristics: 0
         }
     }
 
@@ -458,59 +452,5 @@ impl Player {
         let point = Point { index: bit };
         debug_assert!(point.to_either_bitfield() & self.occupied == 0);
         point
-    }
-
-    pub fn update_energy_towers_with_heuristics(&mut self) {
-        self.energy_towers_with_heuristics = self.occupied;
-        for y in 0..MAP_HEIGHT {
-            let mask = 255u64 << (y*SINGLE_MAP_WIDTH);
-            let isolated_row = self.energy_towers & mask;
-            let row_count = isolated_row.count_ones();
-            self.energy_towers_with_heuristics |= if row_count >= ENERGY_MAX_IN_ROW {
-                mask
-            } else {
-                0
-            };
-        }
-    }
-
-    pub fn unoccupied_energy_cell_count(&self) -> usize {
-        self.energy_towers_with_heuristics.count_zeros() as usize
-    }
-    pub fn location_of_unoccupied_energy_cell(&self, i: usize) -> Point  {
-        let bit = find_bit_index_from_rank(self.energy_towers_with_heuristics, i as u64);
-        let point = Point { index: bit };
-        debug_assert!(point.to_either_bitfield() & self.occupied == 0);
-        point
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn energy_occupied_marks_empty_rows_appropriately() {
-        let mut player = Player::empty();
-        player.energy_towers = 0;
-        player.occupied = 0;
-        player.update_energy_towers_with_heuristics();
-
-        let expected = 0;
-        let actual = player.energy_towers_with_heuristics;
-
-        assert_eq!(expected, actual);
-    }
-        #[test]
-    fn energy_occupied_marks_full_first_row_appropriately() {
-        let mut player = Player::empty();
-        player.energy_towers = 0x00_07; //3 energy towers in first row, don't build more
-        player.occupied = 0x07_07; //3 more towers in second row, can still build by them
-        player.update_energy_towers_with_heuristics();
-
-        let expected = 0x07_ff;
-        let actual = player.energy_towers_with_heuristics;
-
-        assert_eq!(expected, actual);
     }
 }

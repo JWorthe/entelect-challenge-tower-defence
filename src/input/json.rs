@@ -137,8 +137,6 @@ impl State {
                 }
             }
         }
-        player.update_energy_towers_with_heuristics();
-        opponent.update_energy_towers_with_heuristics();
             
         bitwise_engine::BitwiseGameState::new(
             player, opponent,
