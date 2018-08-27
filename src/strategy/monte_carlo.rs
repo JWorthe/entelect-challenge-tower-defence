@@ -71,7 +71,8 @@ pub fn choose_move(state: &BitwiseGameState, start_time: PreciseTime, max_time: 
 
 #[cfg(feature = "debug-decisions")]
 fn debug_print_choices<F: FnMut(&CommandScore) -> Option<(Point, i32)>>(label: &str, command_scores: &[CommandScore], extractor: F) {
-    println!("{}", label);
+    println!("#+NAME: {}", label);
+    println!("#+PLOT: type:3d with:pm3d");
     let relevant_moves: Vec<(Point, i32)>  = command_scores.iter()
         .filter_map(extractor)
         .collect();
