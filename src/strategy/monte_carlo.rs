@@ -28,7 +28,7 @@ pub fn choose_move(state: &BitwiseGameState, start_time: PreciseTime, max_time: 
     let command = {
         let best_command_score = simulate_options_to_timeout(&mut command_scores, state, start_time, max_time);
         match best_command_score {
-            Some(best_command_score) => best_command_score.command,
+            Some(best) if !best.starts_with_nothing => best.command,
             _ => Command::Nothing
         }
     };
@@ -139,15 +139,21 @@ fn simulate_all_options_once(command_scores: &mut[CommandScore], state: &Bitwise
 fn simulate_to_endstate<R: Rng>(command_score: &mut CommandScore, state: &BitwiseGameState, rng: &mut R) {
     let mut state_mut = state.clone();
     
-    let opponent_first = random_move(&state_mut.opponent, rng);
-    let mut status = state_mut.simulate(command_score.command, opponent_first);
+    let mut status = GameStatus::Continue; //state_mut.simulate(command_score.command, opponent_first);
+    let mut first_move_made = false;
     
     for _ in 0..MAX_MOVES {
         if status != GameStatus::Continue {
             break;
         }
 
-        let player_command = random_move(&state_mut.player, rng);
+        let player_command = if first_move_made {
+            random_move(&state_mut.player, rng)
+        } else {
+            let do_nothing = command_score.command.cant_build_yet(state_mut.player.energy);
+            first_move_made = !do_nothing;
+            if do_nothing { Command::Nothing } else { command_score.command }
+        };
         let opponent_command = random_move(&state_mut.opponent, rng);
         status = state_mut.simulate(player_command, opponent_command);
     }
@@ -169,7 +175,7 @@ fn random_move<R: Rng>(player: &Player, rng: &mut R) -> Command {
 
     let all_buildings = sensible_buildings(player, open_building_spot);
 
-    let iron_curtain_count = if player.can_build_iron_curtain() { 5 } else { 0 };
+    let iron_curtain_count = if player.can_build_iron_curtain() && player.energy >= IRON_CURTAIN_PRICE { 1 } else { 0 };
     let nothing_count = 1;
 
     let building_choice_index = rng.gen_range(0, all_buildings.len() + nothing_count + iron_curtain_count);
@@ -191,6 +197,7 @@ fn random_move<R: Rng>(player: &Player, rng: &mut R) -> Command {
 #[derive(Debug)]
 struct CommandScore {
     command: Command,
+    starts_with_nothing: bool,
     victories: u32,
     defeats: u32,
     draws: u32,
@@ -200,9 +207,9 @@ struct CommandScore {
 }
 
 impl CommandScore {
-    fn new(command: Command) -> CommandScore {
+    fn new(command: Command, starts_with_nothing: bool) -> CommandScore {
         CommandScore {
-            command,
+            command, starts_with_nothing,
             victories: 0,
             defeats: 0,
             draws: 0,
@@ -245,21 +252,18 @@ impl CommandScore {
         let unoccupied_cells = (0..unoccupied_cells_count)
             .map(|i| state.player.location_of_unoccupied_cell(i));
 
-        let open_building_spot = unoccupied_cells_count > 0;
-        
-        let all_buildings = sensible_buildings(&state.player, open_building_spot);
+        let all_buildings = [BuildingType::Defence, BuildingType::Attack, BuildingType::Energy, BuildingType::Tesla];
 
         let building_command_count = unoccupied_cells.len()*all_buildings.len();
         
-        let mut commands = Vec::with_capacity(building_command_count + 2);
-        commands.push(CommandScore::new(Command::Nothing));
+        let mut commands = Vec::with_capacity(building_command_count + 1);
         if state.player.can_build_iron_curtain() {
-            commands.push(CommandScore::new(Command::IronCurtain));
+            commands.push(CommandScore::new(Command::IronCurtain, state.player.energy < IRON_CURTAIN_PRICE));
         }
 
         for position in unoccupied_cells {
             for &building in &all_buildings {
-                commands.push(CommandScore::new(Command::Build(position, building)));
+                commands.push(CommandScore::new(Command::Build(position, building), building.cant_build_yet(state.player.energy)));
             }
         }
 

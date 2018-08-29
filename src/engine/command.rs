@@ -1,4 +1,5 @@
 use std::fmt;
+use super::constants::*;
 use super::geometry::Point;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -17,6 +18,19 @@ impl fmt::Display for Command {
         }
     }
 }
+
+impl Command {
+    pub fn cant_build_yet(&self, energy: u16) -> bool {
+        use self::Command::*;
+
+        match self {
+            Nothing => false,
+            Build(_, b) => b.cant_build_yet(energy),
+            IronCurtain => energy < IRON_CURTAIN_PRICE
+        }
+    }
+}
+
 
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -38,4 +52,15 @@ impl BuildingType {
         if id <= 4 && id != 3 { Some(unsafe { mem::transmute(id) }) } else { None }
     }
 
+    pub fn cant_build_yet(&self, energy: u16) -> bool {
+        use self::BuildingType::*;
+
+        let required = match self {
+            Defence => DEFENCE_PRICE,
+            Attack => MISSILE_PRICE,
+            Energy => ENERGY_PRICE,
+            Tesla => TESLA_PRICE
+        };
+        energy < required
+    }
 }

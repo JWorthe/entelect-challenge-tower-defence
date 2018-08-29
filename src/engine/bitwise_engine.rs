@@ -333,7 +333,7 @@ impl Player {
     }
 
     pub fn can_build_iron_curtain(&self) -> bool {
-        self.iron_curtain_available && self.iron_curtain_remaining == 0 && self.energy >= IRON_CURTAIN_PRICE
+        self.iron_curtain_available && self.iron_curtain_remaining == 0
     }
 
     pub fn unoccupied_cell_count(&self) -> usize { self.occupied.count_zeros() as usize }
