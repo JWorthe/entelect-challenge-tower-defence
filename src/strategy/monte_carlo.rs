@@ -168,6 +168,8 @@ fn simulate_to_endstate<R: Rng>(command_score: &mut CommandScore, state: &Bitwis
     }
 }
 
+// TODO: This needs a decent heuristic play. Don't do nothing and
+// target certain rows with missiles?
 fn random_move<R: Rng>(player: &Player, rng: &mut R) -> Command {
     let free_positions_count = player.unoccupied_cell_count();
 
@@ -251,13 +253,26 @@ impl CommandScore {
         let unoccupied_cells_count = state.player.unoccupied_cell_count();
         let unoccupied_cells = (0..unoccupied_cells_count)
             .map(|i| state.player.location_of_unoccupied_cell(i));
+        let energy_generated = state.player.energy_generated();
 
-        let all_buildings = [BuildingType::Defence, BuildingType::Attack, BuildingType::Energy, BuildingType::Tesla];
-
+        let mut all_buildings: ArrayVec<[BuildingType; 4]> = ArrayVec::new();
+        if DEFENCE_PRICE <= state.player.energy {
+            all_buildings.push(BuildingType::Defence);
+        }
+        if MISSILE_PRICE <= state.player.energy {
+            all_buildings.push(BuildingType::Attack);
+        }
+        if ENERGY_PRICE <= state.player.energy {
+            all_buildings.push(BuildingType::Energy);
+        }
+        if !state.player.has_max_teslas() && (TESLA_PRICE.saturating_sub(state.player.energy) / energy_generated < 4) {
+            all_buildings.push(BuildingType::Tesla);
+        }
+        
         let building_command_count = unoccupied_cells.len()*all_buildings.len();
         
         let mut commands = Vec::with_capacity(building_command_count + 1);
-        if state.player.can_build_iron_curtain() {
+        if state.player.can_build_iron_curtain() && IRON_CURTAIN_PRICE.saturating_sub(state.player.energy) / energy_generated < 4 {
             commands.push(CommandScore::new(Command::IronCurtain, state.player.energy < IRON_CURTAIN_PRICE));
         }
 
@@ -276,7 +291,6 @@ impl fmt::Display for CommandScore {
         write!(f, "{},{}", self.command, self.win_ratio())
     }
 }
-
 
 #[cfg(not(feature = "energy-cutoff"))]
 fn sensible_buildings(player: &Player, open_building_spot: bool) -> ArrayVec<[BuildingType;4]> {
