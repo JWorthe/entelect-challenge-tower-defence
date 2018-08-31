@@ -11,6 +11,10 @@ extern crate rayon;
 
 extern crate arrayvec;
 
+#[macro_use]
+#[cfg(feature = "heuristic-random")]
+extern crate lazy_static;
+
 pub mod input;
 pub mod engine;
 pub mod strategy;

@@ -35,6 +35,11 @@ pub const DECONSTRUCT_ENERGY: u16 = 5;
 pub const MAX_CONCURRENT_CONSTRUCTION: usize = 6; //2 teslas, and 3 of anything else, 1 extra because it's push here then update construction times
 
 
+pub const NUMBER_OF_BUILDING_TYPES: usize = 4;
+pub const NUMBER_OF_MAP_POSITIONS: usize = SINGLE_MAP_WIDTH as usize * MAP_HEIGHT as usize;
+pub const NUMBER_OF_POSSIBLE_MOVES: usize = NUMBER_OF_MAP_POSITIONS * NUMBER_OF_BUILDING_TYPES + 2;
+
+
 #[cfg(not(feature = "reduced-time"))]
 #[cfg(not(feature = "extended-time"))]
 pub const MAX_TIME_MILLIS: i64 = 1950;

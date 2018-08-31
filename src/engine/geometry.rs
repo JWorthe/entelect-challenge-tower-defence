@@ -17,6 +17,12 @@ impl Point {
         }
     }
 
+    pub fn new_index(index: u8) -> Point {
+        Point {
+            index
+        }
+    }
+
     pub fn new_double_bitfield(x: u8, y: u8, is_left_player: bool) -> (u64, u64) {
         let bitfield = Point::new(x, y).to_either_bitfield();
         if (x >= SINGLE_MAP_WIDTH) == is_left_player {

@@ -13,6 +13,8 @@ rayon = "1.0.2"
 
 arrayvec = "0.4.7"
 
+lazy_static = { version = "1.1.0", optional = true }
+
 [dev-dependencies]
 proptest = "0.8.4"
 
@@ -25,7 +27,7 @@ extended-time = []
 
 energy-cutoff = []
 discard-poor-performers = []
-heuristic-random = []
+heuristic-random = ["lazy_static"]
 
 default = ["energy-cutoff", "discard-poor-performers"]
 

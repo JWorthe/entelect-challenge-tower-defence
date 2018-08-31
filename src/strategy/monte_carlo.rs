@@ -168,18 +168,38 @@ fn simulate_to_endstate<R: Rng>(command_score: &mut CommandScore, state: &Bitwis
     }
 }
 
-// TODO
-// 1. Have a (static) array of all moves. Even invalid ones. ALL
-// 2. Create a new CDF array, same size.
-// 3. Loop moves
-// 3.1. Compute PDF for move. Invalid moves are 0.
-// 3.2. Add to last CDF value and stick in array
-// 4. Generate random number uniformly, 0 to CDF max
-// 5. Binary search to find random number in CDF array. Min index where CDF[index] > random
-// 6. Lookup move in static array
 #[cfg(feature = "heuristic-random")]
 fn random_move<R: Rng>(player: &Player, rng: &mut R) -> Command {
-    Command::Nothing
+    lazy_static! {
+        static ref MOVES: Vec<Command> = {
+            let mut m = Vec::with_capacity(NUMBER_OF_POSSIBLE_MOVES);
+            m.push(Command::IronCurtain);
+            for p in 0..NUMBER_OF_MAP_POSITIONS as u8 {
+                let point = Point::new_index(p);
+                for b in [BuildingType::Energy, BuildingType::Defence, BuildingType::Attack, BuildingType::Tesla].iter() {
+                    m.push(Command::Build(point, *b));
+                }
+            }
+            m
+        };
+    }
+    
+    let mut cdf = Vec::with_capacity(NUMBER_OF_POSSIBLE_MOVES);
+    let mut cumulative_distribution: u32 = 0;
+    for m in MOVES.iter() {
+        // TODO: Heuristic here. Invalid moves are 0. Higher is more likely.
+        let weight = 1;
+        
+        cumulative_distribution += weight;
+        cdf.push(cumulative_distribution);
+    }
+
+    let choice = rng.gen_range(0, cumulative_distribution);
+
+    // TODO: Binary search here. Find choice in cdf.
+    let index = 0;
+
+    MOVES[index].clone()
 }
 
 #[cfg(not(feature = "heuristic-random"))]
@@ -268,7 +288,7 @@ impl CommandScore {
             .map(|i| state.player.location_of_unoccupied_cell(i));
         let energy_generated = state.player.energy_generated();
 
-        let mut all_buildings: ArrayVec<[BuildingType; 4]> = ArrayVec::new();
+        let mut all_buildings: ArrayVec<[BuildingType; NUMBER_OF_BUILDING_TYPES]> = ArrayVec::new();
         if DEFENCE_PRICE <= state.player.energy {
             all_buildings.push(BuildingType::Defence);
         }
@@ -306,7 +326,7 @@ impl fmt::Display for CommandScore {
 }
 
 #[cfg(not(feature = "energy-cutoff"))]
-fn sensible_buildings(player: &Player, open_building_spot: bool) -> ArrayVec<[BuildingType;4]> {
+fn sensible_buildings(player: &Player, open_building_spot: bool) -> ArrayVec<[BuildingType; NUMBER_OF_BUILDING_TYPES]> {
     let mut result = ArrayVec::new();
     if !open_building_spot {
         return result;
@@ -329,7 +349,7 @@ fn sensible_buildings(player: &Player, open_building_spot: bool) -> ArrayVec<[Bu
 }
 
 #[cfg(feature = "energy-cutoff")]
-fn sensible_buildings(player: &Player, open_building_spot: bool) -> ArrayVec<[BuildingType;4]> {
+fn sensible_buildings(player: &Player, open_building_spot: bool) -> ArrayVec<[BuildingType; NUMBER_OF_BUILDING_TYPES]> {
     let mut result = ArrayVec::new();
     if !open_building_spot {
         return result;

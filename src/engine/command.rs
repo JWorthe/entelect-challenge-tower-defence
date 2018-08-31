@@ -42,7 +42,7 @@ pub enum BuildingType {
 }
 
 impl BuildingType {
-    pub fn all() -> [BuildingType; 4] {
+    pub fn all() -> [BuildingType; NUMBER_OF_BUILDING_TYPES] {
         use self::BuildingType::*;
         [Defence, Attack, Energy, Tesla]
     }
