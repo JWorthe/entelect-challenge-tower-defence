@@ -25,6 +25,7 @@ extended-time = []
 
 energy-cutoff = []
 discard-poor-performers = []
+heuristic-random = []
 
 default = ["energy-cutoff", "discard-poor-performers"]
 

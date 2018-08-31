@@ -168,8 +168,21 @@ fn simulate_to_endstate<R: Rng>(command_score: &mut CommandScore, state: &Bitwis
     }
 }
 
-// TODO: This needs a decent heuristic play. Don't do nothing and
-// target certain rows with missiles?
+// TODO
+// 1. Have a (static) array of all moves. Even invalid ones. ALL
+// 2. Create a new CDF array, same size.
+// 3. Loop moves
+// 3.1. Compute PDF for move. Invalid moves are 0.
+// 3.2. Add to last CDF value and stick in array
+// 4. Generate random number uniformly, 0 to CDF max
+// 5. Binary search to find random number in CDF array. Min index where CDF[index] > random
+// 6. Lookup move in static array
+#[cfg(feature = "heuristic-random")]
+fn random_move<R: Rng>(player: &Player, rng: &mut R) -> Command {
+    Command::Nothing
+}
+
+#[cfg(not(feature = "heuristic-random"))]
 fn random_move<R: Rng>(player: &Player, rng: &mut R) -> Command {
     let free_positions_count = player.unoccupied_cell_count();
 
