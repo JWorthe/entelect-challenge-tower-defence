@@ -18,9 +18,8 @@ use time::{Duration, PreciseTime};
 #[cfg(not(feature = "single-threaded"))]
 use rayon::prelude::*;
 
-//TODO Rethink / adjust these?
 #[cfg(feature = "energy-cutoff")] pub const ENERGY_PRODUCTION_CUTOFF: u16 = 50;
-#[cfg(feature = "energy-cutoff")] pub const ENERGY_STORAGE_CUTOFF: u16 = 100;
+#[cfg(feature = "energy-cutoff")] pub const ENERGY_STORAGE_CUTOFF: u16 = 120;
 
 pub fn choose_move(state: &BitwiseGameState, start_time: PreciseTime, max_time: Duration) -> Command {
     let mut command_scores = CommandScore::init_command_scores(state);
