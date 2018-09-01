@@ -450,4 +450,14 @@ impl Player {
         let mask = 255u64 << (y * SINGLE_MAP_WIDTH);
         (self.energy_towers & mask).count_ones()
     }
+
+    pub fn count_healthy_defence_in_row(&self, y: u8) -> u32 {
+        let mask = 255u64 << (y * SINGLE_MAP_WIDTH);
+        (self.buildings[1] & mask).count_ones()
+    }
+
+    pub fn count_towers_in_row(&self, y: u8) -> u32 {
+        let mask = 255u64 << (y * SINGLE_MAP_WIDTH);
+        (self.occupied & mask).count_ones()
+    }
 }

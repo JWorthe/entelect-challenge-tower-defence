@@ -249,7 +249,8 @@ fn random_move<R: Rng>(player: &Player, opponent: &Player, rng: &mut R) -> Comma
         let weight = if  player.energy < MISSILE_PRICE || player.occupied & point.to_either_bitfield() != 0 {
             0
         } else {
-            8 + opponent.count_energy_towers_in_row(point.y()) - opponent.count_attack_towers_in_row(point.y())
+            // TODO: take into account opponent attacks and defence in row?
+            8 + opponent.count_energy_towers_in_row(point.y()) - player.count_attack_towers_in_row(point.y())
         };
 
         cumulative_distribution += weight;
@@ -272,7 +273,7 @@ fn random_move<R: Rng>(player: &Player, opponent: &Player, rng: &mut R) -> Comma
         cdf[i] = cumulative_distribution;
     }
 
-    assert_eq!(MOVES.len(), t_base + NUMBER_OF_MAP_POSITIONS);
+    debug_assert_eq!(MOVES.len(), t_base + NUMBER_OF_MAP_POSITIONS);
 
     if cumulative_distribution == 0 {
         return Command::Nothing;
@@ -280,7 +281,6 @@ fn random_move<R: Rng>(player: &Player, opponent: &Player, rng: &mut R) -> Comma
 
     let choice = rng.gen_range(0, cumulative_distribution);
 
-    // find maximum index where choice <= cdf[index]
     // TODO can this be a more efficient lookup?
     let index = cdf.iter().position(|&c| c > choice).expect("Random number has exceeded cumulative distribution");
 
