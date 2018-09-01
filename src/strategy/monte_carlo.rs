@@ -147,13 +147,13 @@ fn simulate_to_endstate<R: Rng>(command_score: &mut CommandScore, state: &Bitwis
         }
 
         let player_command = if first_move_made {
-            random_move(&state_mut.player, rng)
+            random_move(&state_mut.player, &state_mut, rng)
         } else {
             let do_nothing = command_score.command.cant_build_yet(state_mut.player.energy);
             first_move_made = !do_nothing;
             if do_nothing { Command::Nothing } else { command_score.command }
         };
-        let opponent_command = random_move(&state_mut.opponent, rng);
+        let opponent_command = random_move(&state_mut.opponent, &state_mut, rng);
         status = state_mut.simulate(player_command, opponent_command);
     }
 
@@ -168,14 +168,14 @@ fn simulate_to_endstate<R: Rng>(command_score: &mut CommandScore, state: &Bitwis
 }
 
 #[cfg(feature = "heuristic-random")]
-fn random_move<R: Rng>(player: &Player, rng: &mut R) -> Command {
+fn random_move<R: Rng>(player: &Player, _state: &BitwiseGameState, rng: &mut R) -> Command {
     lazy_static! {
         static ref MOVES: Vec<Command> = {
             let mut m = Vec::with_capacity(NUMBER_OF_POSSIBLE_MOVES);
             m.push(Command::IronCurtain);
-            for p in 0..NUMBER_OF_MAP_POSITIONS as u8 {
+            for b in [BuildingType::Energy, BuildingType::Defence, BuildingType::Attack, BuildingType::Tesla].iter() {
+                for p in 0..NUMBER_OF_MAP_POSITIONS as u8 {
                 let point = Point::new_index(p);
-                for b in [BuildingType::Energy, BuildingType::Defence, BuildingType::Attack, BuildingType::Tesla].iter() {
                     m.push(Command::Build(point, *b));
                 }
             }
@@ -186,23 +186,83 @@ fn random_move<R: Rng>(player: &Player, rng: &mut R) -> Command {
     let mut cdf = Vec::with_capacity(NUMBER_OF_POSSIBLE_MOVES);
     let mut cumulative_distribution: u32 = 0;
     for m in MOVES.iter() {
-        // TODO: Heuristic here. Invalid moves are 0. Higher is more likely.
-        let weight = 1;
+        let weight = match m {
+            Command::Nothing => {
+                0
+            },
+            Command::Build(p, BuildingType::Energy) => {
+                if player.energy < ENERGY_PRICE || player.occupied & p.to_either_bitfield() != 0 {
+                    0
+                } else {
+                    //TODO: This needs to be more complex
+                    1
+                }
+            },
+            Command::Build(p, BuildingType::Defence) => {
+                if player.energy < DEFENCE_PRICE || player.occupied & p.to_either_bitfield() != 0 {
+                    0
+                } else {
+                    //TODO: This needs to be more complex
+                    1
+                }
+            },
+            Command::Build(p, BuildingType::Attack) => {
+                if  player.energy < MISSILE_PRICE || player.occupied & p.to_either_bitfield() != 0 {
+                    0
+                } else {
+                    //TODO: This needs to be more complex
+                    1
+                }
+            },
+            Command::Build(p, BuildingType::Tesla) => {
+                if player.has_max_teslas() || player.energy < TESLA_PRICE || player.occupied & p.to_either_bitfield() != 0 {
+                    0
+                } else {
+                    //TODO: This needs to be more complex
+                    1
+                }
+            },
+            Command::IronCurtain => {
+                if player.can_build_iron_curtain() && player.energy >= IRON_CURTAIN_PRICE {
+                    20
+                } else {
+                    0
+                }
+            }
+        };
         
         cumulative_distribution += weight;
         cdf.push(cumulative_distribution);
     }
+    if cumulative_distribution == 0 {
+        return Command::Nothing;
+    }
 
     let choice = rng.gen_range(0, cumulative_distribution);
 
-    // TODO: Binary search here. Find choice in cdf.
-    let index = 0;
+    // find maximum index where choice <= cdf[index]
+    let index = cdf.iter().position(|&c| c > choice).expect("Random number has exceeded cumulative distribution");
+    
+    /*
+    let mut min_index = 0;
+    let mut max_index = cdf.len();
 
+    while max_index - min_index > 1 {
+        let mid = (min_index + max_index) / 2;
+        if cdf[mid] > choice {
+            max_index = mid+1;
+        } else {
+            min_index = mid;
+        }
+    }
+    let index = min_index;
+     */
+    
     MOVES[index].clone()
 }
 
 #[cfg(not(feature = "heuristic-random"))]
-fn random_move<R: Rng>(player: &Player, rng: &mut R) -> Command {
+fn random_move<R: Rng>(player: &Player, _state: &BitwiseGameState, rng: &mut R) -> Command {
     let free_positions_count = player.unoccupied_cell_count();
 
     let open_building_spot = free_positions_count > 0;
