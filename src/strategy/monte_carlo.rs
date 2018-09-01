@@ -170,70 +170,108 @@ fn simulate_to_endstate<R: Rng>(command_score: &mut CommandScore, state: &Bitwis
 #[cfg(feature = "heuristic-random")]
 fn random_move<R: Rng>(player: &Player, _state: &BitwiseGameState, rng: &mut R) -> Command {
     lazy_static! {
-        static ref MOVES: Vec<Command> = {
-            let mut m = Vec::with_capacity(NUMBER_OF_POSSIBLE_MOVES);
-            m.push(Command::IronCurtain);
+        static ref MOVES: [Command; NUMBER_OF_POSSIBLE_MOVES] = {
+            let mut m = [Command::Nothing; NUMBER_OF_POSSIBLE_MOVES];
+            m[1] = Command::IronCurtain;
+            let mut i = 2;
             for b in [BuildingType::Energy, BuildingType::Defence, BuildingType::Attack, BuildingType::Tesla].iter() {
                 for p in 0..NUMBER_OF_MAP_POSITIONS as u8 {
                 let point = Point::new_index(p);
-                    m.push(Command::Build(point, *b));
+                    m[i] = Command::Build(point, *b);
+                    i += 1;
                 }
             }
             m
         };
     }
-    
-    let mut cdf = Vec::with_capacity(NUMBER_OF_POSSIBLE_MOVES);
+
+    let mut cdf = [0; NUMBER_OF_POSSIBLE_MOVES];
     let mut cumulative_distribution: u32 = 0;
-    for m in MOVES.iter() {
-        let weight = match m {
-            Command::Nothing => {
-                0
-            },
-            Command::Build(p, BuildingType::Energy) => {
-                if player.energy < ENERGY_PRICE || player.occupied & p.to_either_bitfield() != 0 {
-                    0
-                } else {
-                    //TODO: This needs to be more complex
-                    1
-                }
-            },
-            Command::Build(p, BuildingType::Defence) => {
-                if player.energy < DEFENCE_PRICE || player.occupied & p.to_either_bitfield() != 0 {
-                    0
-                } else {
-                    //TODO: This needs to be more complex
-                    1
-                }
-            },
-            Command::Build(p, BuildingType::Attack) => {
-                if  player.energy < MISSILE_PRICE || player.occupied & p.to_either_bitfield() != 0 {
-                    0
-                } else {
-                    //TODO: This needs to be more complex
-                    1
-                }
-            },
-            Command::Build(p, BuildingType::Tesla) => {
-                if player.has_max_teslas() || player.energy < TESLA_PRICE || player.occupied & p.to_either_bitfield() != 0 {
-                    0
-                } else {
-                    //TODO: This needs to be more complex
-                    1
-                }
-            },
-            Command::IronCurtain => {
-                if player.can_build_iron_curtain() && player.energy >= IRON_CURTAIN_PRICE {
-                    20
-                } else {
-                    0
-                }
-            }
-        };
-        
+    let mut i = 0;
+
+    // Nothing
+    {
+        let weight = 0;
         cumulative_distribution += weight;
-        cdf.push(cumulative_distribution);
+        cdf[i] = cumulative_distribution;
+        i += 1;
     }
+    
+    // Iron Curtain
+    {
+        let weight = if player.can_build_iron_curtain() && player.energy >= IRON_CURTAIN_PRICE {
+            20
+        } else {
+            0
+        };
+        cumulative_distribution += weight;
+        cdf[i] = cumulative_distribution;
+        i += 1;
+    }
+
+    // Energy
+    for p in 0..NUMBER_OF_MAP_POSITIONS as u8 {
+        let point = Point::new_index(p);
+        let weight = if player.energy < ENERGY_PRICE || player.occupied & point.to_either_bitfield() != 0 {
+            0
+        } else {
+            //TODO: This needs to be more complex
+            1
+        };
+
+        cumulative_distribution += weight;
+        cdf[i] = cumulative_distribution;
+        i += 1;
+    }
+
+    // Defence
+    for p in 0..NUMBER_OF_MAP_POSITIONS as u8 {
+        let point = Point::new_index(p);
+        let weight = if player.energy < DEFENCE_PRICE || player.occupied & point.to_either_bitfield() != 0 {
+            0
+        } else {
+            //TODO: This needs to be more complex
+            1
+        };
+
+        cumulative_distribution += weight;
+        cdf[i] = cumulative_distribution;
+        i += 1;
+    }
+
+    // Attack
+    for p in 0..NUMBER_OF_MAP_POSITIONS as u8 {
+        let point = Point::new_index(p);
+        let weight = if  player.energy < MISSILE_PRICE || player.occupied & point.to_either_bitfield() != 0 {
+            0
+        } else {
+            //TODO: This needs to be more complex
+            1
+        };
+
+        cumulative_distribution += weight;
+        cdf[i] = cumulative_distribution;
+        i += 1;
+    }
+
+    // Tesla
+    let cant_tesla = player.has_max_teslas() || player.energy < TESLA_PRICE;
+    for p in 0..NUMBER_OF_MAP_POSITIONS as u8 {
+        let point = Point::new_index(p);
+        let weight = if cant_tesla || player.occupied & point.to_either_bitfield() != 0 {
+            0
+        } else {
+            //TODO: This needs to be more complex
+            1
+        };
+
+        cumulative_distribution += weight;
+        cdf[i] = cumulative_distribution;
+        i += 1;
+    }
+
+    assert_eq!(MOVES.len(), i);
+
     if cumulative_distribution == 0 {
         return Command::Nothing;
     }
