@@ -147,13 +147,13 @@ fn simulate_to_endstate<R: Rng>(command_score: &mut CommandScore, state: &Bitwis
         }
 
         let player_command = if first_move_made {
-            random_move(&state_mut.player, &state_mut, rng)
+            random_move(&state_mut.player, &state_mut.opponent, rng)
         } else {
             let do_nothing = command_score.command.cant_build_yet(state_mut.player.energy);
             first_move_made = !do_nothing;
             if do_nothing { Command::Nothing } else { command_score.command }
         };
-        let opponent_command = random_move(&state_mut.opponent, &state_mut, rng);
+        let opponent_command = random_move(&state_mut.opponent, &state_mut.player, rng);
         status = state_mut.simulate(player_command, opponent_command);
     }
 
@@ -168,7 +168,7 @@ fn simulate_to_endstate<R: Rng>(command_score: &mut CommandScore, state: &Bitwis
 }
 
 #[cfg(feature = "heuristic-random")]
-fn random_move<R: Rng>(player: &Player, _state: &BitwiseGameState, rng: &mut R) -> Command {
+fn random_move<R: Rng>(player: &Player, _opponent: &Player, rng: &mut R) -> Command {
     lazy_static! {
         static ref MOVES: [Command; NUMBER_OF_POSSIBLE_MOVES] = {
             let mut m = [Command::Nothing; NUMBER_OF_POSSIBLE_MOVES];
@@ -187,14 +187,12 @@ fn random_move<R: Rng>(player: &Player, _state: &BitwiseGameState, rng: &mut R) 
 
     let mut cdf = [0; NUMBER_OF_POSSIBLE_MOVES];
     let mut cumulative_distribution: u32 = 0;
-    let mut i = 0;
 
     // Nothing
     {
         let weight = 0;
         cumulative_distribution += weight;
-        cdf[i] = cumulative_distribution;
-        i += 1;
+        cdf[0] = cumulative_distribution;
     }
     
     // Iron Curtain
@@ -205,12 +203,13 @@ fn random_move<R: Rng>(player: &Player, _state: &BitwiseGameState, rng: &mut R) 
             0
         };
         cumulative_distribution += weight;
-        cdf[i] = cumulative_distribution;
-        i += 1;
+        cdf[1] = cumulative_distribution;
     }
 
     // Energy
+    let e_base = 2;
     for p in 0..NUMBER_OF_MAP_POSITIONS as u8 {
+        let i = e_base + p as usize;
         let point = Point::new_index(p);
         let weight = if player.energy < ENERGY_PRICE || player.occupied & point.to_either_bitfield() != 0 {
             0
@@ -221,11 +220,12 @@ fn random_move<R: Rng>(player: &Player, _state: &BitwiseGameState, rng: &mut R) 
 
         cumulative_distribution += weight;
         cdf[i] = cumulative_distribution;
-        i += 1;
     }
 
     // Defence
+    let d_base = e_base + NUMBER_OF_MAP_POSITIONS;
     for p in 0..NUMBER_OF_MAP_POSITIONS as u8 {
+        let i = d_base + p as usize;
         let point = Point::new_index(p);
         let weight = if player.energy < DEFENCE_PRICE || player.occupied & point.to_either_bitfield() != 0 {
             0
@@ -236,11 +236,12 @@ fn random_move<R: Rng>(player: &Player, _state: &BitwiseGameState, rng: &mut R) 
 
         cumulative_distribution += weight;
         cdf[i] = cumulative_distribution;
-        i += 1;
     }
 
     // Attack
+    let a_base = d_base + NUMBER_OF_MAP_POSITIONS;
     for p in 0..NUMBER_OF_MAP_POSITIONS as u8 {
+        let i = a_base + p as usize;
         let point = Point::new_index(p);
         let weight = if  player.energy < MISSILE_PRICE || player.occupied & point.to_either_bitfield() != 0 {
             0
@@ -251,12 +252,13 @@ fn random_move<R: Rng>(player: &Player, _state: &BitwiseGameState, rng: &mut R) 
 
         cumulative_distribution += weight;
         cdf[i] = cumulative_distribution;
-        i += 1;
     }
 
     // Tesla
+    let t_base = a_base + NUMBER_OF_MAP_POSITIONS;
     let cant_tesla = player.has_max_teslas() || player.energy < TESLA_PRICE;
     for p in 0..NUMBER_OF_MAP_POSITIONS as u8 {
+        let i = t_base + p as usize;
         let point = Point::new_index(p);
         let weight = if cant_tesla || player.occupied & point.to_either_bitfield() != 0 {
             0
@@ -267,10 +269,9 @@ fn random_move<R: Rng>(player: &Player, _state: &BitwiseGameState, rng: &mut R) 
 
         cumulative_distribution += weight;
         cdf[i] = cumulative_distribution;
-        i += 1;
     }
 
-    assert_eq!(MOVES.len(), i);
+    assert_eq!(MOVES.len(), t_base + NUMBER_OF_MAP_POSITIONS);
 
     if cumulative_distribution == 0 {
         return Command::Nothing;
@@ -300,7 +301,7 @@ fn random_move<R: Rng>(player: &Player, _state: &BitwiseGameState, rng: &mut R) 
 }
 
 #[cfg(not(feature = "heuristic-random"))]
-fn random_move<R: Rng>(player: &Player, _state: &BitwiseGameState, rng: &mut R) -> Command {
+fn random_move<R: Rng>(player: &Player, _opponent: &Player, rng: &mut R) -> Command {
     let free_positions_count = player.unoccupied_cell_count();
 
     let open_building_spot = free_positions_count > 0;
