@@ -436,4 +436,18 @@ impl Player {
         }
         self.firing_tower = (self.firing_tower + 1) % MISSILE_COOLDOWN_STATES;
     }
+
+    fn any_missile_towers(&self) -> u64 {
+        self.missile_towers.iter().fold(0, |acc, next| acc | next)
+    }
+
+    pub fn count_attack_towers_in_row(&self, y: u8) -> u32 {
+        let mask = 255u64 << (y * SINGLE_MAP_WIDTH);
+        (self.any_missile_towers() & mask).count_ones()
+    }
+
+    pub fn count_energy_towers_in_row(&self, y: u8) -> u32 {
+        let mask = 255u64 << (y * SINGLE_MAP_WIDTH);
+        (self.energy_towers & mask).count_ones()
+    }
 }

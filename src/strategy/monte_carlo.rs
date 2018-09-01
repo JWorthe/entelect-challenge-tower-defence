@@ -168,7 +168,7 @@ fn simulate_to_endstate<R: Rng>(command_score: &mut CommandScore, state: &Bitwis
 }
 
 #[cfg(feature = "heuristic-random")]
-fn random_move<R: Rng>(player: &Player, _opponent: &Player, rng: &mut R) -> Command {
+fn random_move<R: Rng>(player: &Player, opponent: &Player, rng: &mut R) -> Command {
     lazy_static! {
         static ref MOVES: [Command; NUMBER_OF_POSSIBLE_MOVES] = {
             let mut m = [Command::Nothing; NUMBER_OF_POSSIBLE_MOVES];
@@ -208,13 +208,16 @@ fn random_move<R: Rng>(player: &Player, _opponent: &Player, rng: &mut R) -> Comm
 
     // Energy
     let e_base = 2;
+    let needs_energy = player.energy_generated() <= ENERGY_PRODUCTION_CUTOFF ||
+        player.energy <= ENERGY_STORAGE_CUTOFF;
     for p in 0..NUMBER_OF_MAP_POSITIONS as u8 {
         let i = e_base + p as usize;
         let point = Point::new_index(p);
-        let weight = if player.energy < ENERGY_PRICE || player.occupied & point.to_either_bitfield() != 0 {
+        let weight = if !needs_energy || player.energy < ENERGY_PRICE || player.occupied & point.to_either_bitfield() != 0 {
             0
+        } else if point.x() < 2 {
+            2
         } else {
-            //TODO: This needs to be more complex
             1
         };
 
@@ -230,8 +233,8 @@ fn random_move<R: Rng>(player: &Player, _opponent: &Player, rng: &mut R) -> Comm
         let weight = if player.energy < DEFENCE_PRICE || player.occupied & point.to_either_bitfield() != 0 {
             0
         } else {
-            //TODO: This needs to be more complex
-            1
+            //TODO: Favour the front and rows with something to defend
+            opponent.count_attack_towers_in_row(point.y())
         };
 
         cumulative_distribution += weight;
@@ -246,8 +249,7 @@ fn random_move<R: Rng>(player: &Player, _opponent: &Player, rng: &mut R) -> Comm
         let weight = if  player.energy < MISSILE_PRICE || player.occupied & point.to_either_bitfield() != 0 {
             0
         } else {
-            //TODO: This needs to be more complex
-            1
+            8 + opponent.count_energy_towers_in_row(point.y()) - opponent.count_attack_towers_in_row(point.y())
         };
 
         cumulative_distribution += weight;
@@ -260,11 +262,10 @@ fn random_move<R: Rng>(player: &Player, _opponent: &Player, rng: &mut R) -> Comm
     for p in 0..NUMBER_OF_MAP_POSITIONS as u8 {
         let i = t_base + p as usize;
         let point = Point::new_index(p);
-        let weight = if cant_tesla || player.occupied & point.to_either_bitfield() != 0 {
+        let weight = if cant_tesla || (player.occupied & point.to_either_bitfield() != 0) || point.y() < 7 {
             0
         } else {
-            //TODO: This needs to be more complex
-            1
+            2
         };
 
         cumulative_distribution += weight;
@@ -280,23 +281,9 @@ fn random_move<R: Rng>(player: &Player, _opponent: &Player, rng: &mut R) -> Comm
     let choice = rng.gen_range(0, cumulative_distribution);
 
     // find maximum index where choice <= cdf[index]
+    // TODO can this be a more efficient lookup?
     let index = cdf.iter().position(|&c| c > choice).expect("Random number has exceeded cumulative distribution");
-    
-    /*
-    let mut min_index = 0;
-    let mut max_index = cdf.len();
 
-    while max_index - min_index > 1 {
-        let mid = (min_index + max_index) / 2;
-        if cdf[mid] > choice {
-            max_index = mid+1;
-        } else {
-            min_index = mid;
-        }
-    }
-    let index = min_index;
-     */
-    
     MOVES[index].clone()
 }
 
