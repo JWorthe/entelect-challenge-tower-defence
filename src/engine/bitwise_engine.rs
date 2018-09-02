@@ -8,6 +8,17 @@ use arrayvec::ArrayVec;
 const LEFT_COL_MASK: u64 = 0x0101_0101_0101_0101;
 const RIGHT_COL_MASK: u64 = 0x8080_8080_8080_8080;
 
+const ROW_MASKS: [u64; MAP_HEIGHT as usize] = [
+    0x0000_0000_0000_00ff,
+    0x0000_0000_0000_ff00,
+    0x0000_0000_00ff_0000,
+    0x0000_0000_ff00_0000,
+    0x0000_00ff_0000_0000,
+    0x0000_ff00_0000_0000,
+    0x00ff_0000_0000_0000,
+    0xff00_0000_0000_0000,
+];
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BitwiseGameState {
     pub status: GameStatus,
@@ -222,7 +233,7 @@ impl BitwiseGameState {
                 let missed_cells = (u32::from(SINGLE_MAP_WIDTH - x)).saturating_sub(2);
                 
                 let top_row = y.saturating_sub(1);
-                let top_row_mask = 255u64 << (top_row * SINGLE_MAP_WIDTH);
+                let top_row_mask = ROW_MASKS[top_row as usize];
                 let mut destroy_mask = top_row_mask.wrapping_shl(missed_cells) & top_row_mask;
 
                 let mut hits = 0;
@@ -447,22 +458,22 @@ impl Player {
     }
 
     pub fn count_attack_towers_in_row(&self, y: u8) -> u16 {
-        let mask = 255u64 << (y * SINGLE_MAP_WIDTH);
+        let mask = ROW_MASKS[y as usize];
         (self.any_missile_towers() & mask).count_ones() as u16
     }
 
     pub fn count_energy_towers_in_row(&self, y: u8) -> u16 {
-        let mask = 255u64 << (y * SINGLE_MAP_WIDTH);
+        let mask = ROW_MASKS[y as usize];
         (self.energy_towers & mask).count_ones() as u16
     }
 
     pub fn count_healthy_defence_in_row(&self, y: u8) -> u16 {
-        let mask = 255u64 << (y * SINGLE_MAP_WIDTH);
+        let mask = ROW_MASKS[y as usize];
         (self.buildings[1] & mask).count_ones() as u16
     }
 
     pub fn count_towers_in_row(&self, y: u8) -> u16 {
-        let mask = 255u64 << (y * SINGLE_MAP_WIDTH);
+        let mask = ROW_MASKS[y as usize];
         (self.occupied & mask).count_ones() as u16
     }
 }
