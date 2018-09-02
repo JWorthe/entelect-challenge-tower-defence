@@ -257,7 +257,7 @@ fn random_move<R: Rng>(player: &Player, opponent: &Player, rng: &mut R) -> Comma
                 0
             } else {
                 // TODO: take into account opponent attacks and defence in row?
-                8 + opponent.count_energy_towers_in_row(point.y()) - player.count_attack_towers_in_row(point.y())
+                8 + opponent.count_energy_towers_in_row(point.y()) + opponent.count_towers_in_row(point.y()) - player.count_attack_towers_in_row(point.y())
             };
 
             attack_end += weight;
@@ -402,9 +402,11 @@ impl CommandScore {
         }
         
         let building_command_count = unoccupied_cells.len()*all_buildings.len();
-        
+
         let mut commands = Vec::with_capacity(building_command_count + 1);
-        if state.player.can_build_iron_curtain() && IRON_CURTAIN_PRICE.saturating_sub(state.player.energy) / energy_generated < 4 {
+        let time_to_curtain_energy = (IRON_CURTAIN_PRICE.saturating_sub(state.player.energy) / energy_generated) as u8;
+        
+        if time_to_curtain_energy < 4 && state.player.can_build_iron_curtain_in(state.round, time_to_curtain_energy) {
             commands.push(CommandScore::new(Command::IronCurtain, state.player.energy < IRON_CURTAIN_PRICE));
         }
 

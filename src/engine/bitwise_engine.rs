@@ -336,6 +336,11 @@ impl Player {
         self.iron_curtain_available && self.iron_curtain_remaining == 0
     }
 
+    pub fn can_build_iron_curtain_in(&self, round: u16, moves: u8) -> bool {
+        let unlocks = round % IRON_CURTAIN_UNLOCK_INTERVAL > round + u16::from(moves) % IRON_CURTAIN_UNLOCK_INTERVAL;
+        (self.iron_curtain_available || unlocks) && self.iron_curtain_remaining.saturating_sub(moves) == 0
+    }
+
     pub fn unoccupied_cell_count(&self) -> usize { self.occupied.count_zeros() as usize }
     pub fn location_of_unoccupied_cell(&self, i: usize) -> Point  {
         let bit = find_bit_index_from_rank(self.occupied, i as u64);
