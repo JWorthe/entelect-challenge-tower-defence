@@ -58,11 +58,11 @@ pub fn choose_move(state: &BitwiseGameState, start_time: PreciseTime, max_time: 
         
         println!("NOTHING");
         println!("{}", command_scores.iter().find(|c| c.command == Command::Nothing).map(|s| s.win_ratio()).unwrap_or(0));
-        println!("");
+        println!();
 
         println!("IRON CURTAIN");
         println!("{}", command_scores.iter().find(|c| c.command == Command::IronCurtain).map(|s| s.win_ratio()).unwrap_or(0));
-        println!("");
+        println!();
     }
 
     command
@@ -83,7 +83,7 @@ fn debug_print_choices<F: FnMut(&CommandScore) -> Option<(Point, i32)>>(label: &
         }
         println!(" |");
     }
-    println!("");
+    println!();
 }
 
 #[cfg(not(feature = "discard-poor-performers"))]
@@ -174,7 +174,7 @@ fn random_move<R: Rng>(player: &Player, opponent: &Player, rng: &mut R) -> Comma
             let mut m = [Command::Nothing; NUMBER_OF_POSSIBLE_MOVES];
             m[1] = Command::IronCurtain;
             let mut i = 2;
-            for b in [BuildingType::Energy, BuildingType::Defence, BuildingType::Attack, BuildingType::Tesla].iter() {
+            for b in &[BuildingType::Energy, BuildingType::Defence, BuildingType::Attack, BuildingType::Tesla] {
                 for p in 0..NUMBER_OF_MAP_POSITIONS as u8 {
                 let point = Point::new_index(p);
                     m[i] = Command::Build(point, *b);
@@ -284,7 +284,7 @@ fn random_move<R: Rng>(player: &Player, opponent: &Player, rng: &mut R) -> Comma
     // TODO can this be a more efficient lookup?
     let index = cdf.iter().position(|&c| c > choice).expect("Random number has exceeded cumulative distribution");
 
-    MOVES[index].clone()
+    MOVES[index]
 }
 
 #[cfg(not(feature = "heuristic-random"))]

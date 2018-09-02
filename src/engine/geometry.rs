@@ -32,11 +32,11 @@ impl Point {
         }
     }
 
-    pub fn x(&self) -> u8 {
+    pub fn x(self) -> u8 {
         self.index % SINGLE_MAP_WIDTH
     }
 
-    pub fn y(&self) -> u8 {
+    pub fn y(self) -> u8 {
         self.index / SINGLE_MAP_WIDTH
     }
 }
@@ -51,7 +51,7 @@ impl Point {
      * This involves mirroring the x dimension for the opponent's side
      */
 
-    pub fn to_either_bitfield(&self) -> u64 {
+    pub fn to_either_bitfield(self) -> u64 {
         1u64 << self.index
     }
 }

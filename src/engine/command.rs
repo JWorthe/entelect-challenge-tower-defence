@@ -20,7 +20,7 @@ impl fmt::Display for Command {
 }
 
 impl Command {
-    pub fn cant_build_yet(&self, energy: u16) -> bool {
+    pub fn cant_build_yet(self, energy: u16) -> bool {
         use self::Command::*;
 
         match self {
@@ -52,7 +52,7 @@ impl BuildingType {
         if id <= 4 && id != 3 { Some(unsafe { mem::transmute(id) }) } else { None }
     }
 
-    pub fn cant_build_yet(&self, energy: u16) -> bool {
+    pub fn cant_build_yet(self, energy: u16) -> bool {
         use self::BuildingType::*;
 
         let required = match self {

@@ -127,7 +127,7 @@ impl State {
                         &mut opponent
                     };
 
-                    for mut tier in bitwise_buildings.missiles.iter_mut() {
+                    for mut tier in &mut bitwise_buildings.missiles {
                         let setting = (!tier.0 & left, !tier.1 & right);
                         tier.0 |= setting.0;
                         tier.1 |= setting.1;
