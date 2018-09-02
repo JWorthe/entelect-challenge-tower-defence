@@ -190,6 +190,17 @@ fn random_move<R: Rng>(player: &Player, opponent: &Player, rng: &mut R) -> Comma
     let mut cdf_defence = [0; NUMBER_OF_MAP_POSITIONS];
     let mut cdf_attack = [0; NUMBER_OF_MAP_POSITIONS];
     let mut cdf_tesla = [0; NUMBER_OF_MAP_POSITIONS];
+
+    let mut opponent_energy_per_row = [0; MAP_HEIGHT as usize];
+    let mut opponent_attack_per_row = [0; MAP_HEIGHT as usize];
+    let mut opponent_towers_per_row = [0; MAP_HEIGHT as usize];
+    let mut player_attack_per_row = [0; MAP_HEIGHT as usize];
+    for y in 0..MAP_HEIGHT {
+        opponent_energy_per_row[y as usize] = opponent.count_energy_towers_in_row(y);
+        opponent_attack_per_row[y as usize] = opponent.count_attack_towers_in_row(y);
+        opponent_towers_per_row[y as usize] = opponent.count_towers_in_row(y);
+        player_attack_per_row[y as usize] = player.count_attack_towers_in_row(y);
+    }
     
 
     let mut other_end: u16 = 0;
@@ -238,7 +249,7 @@ fn random_move<R: Rng>(player: &Player, opponent: &Player, rng: &mut R) -> Comma
                 0
             } else {
                 //TODO: Favour the front and rows with something to defend
-                opponent.count_attack_towers_in_row(point.y())
+                opponent_attack_per_row[usize::from(point.y())]
             };
 
             defence_end += weight;
@@ -255,7 +266,8 @@ fn random_move<R: Rng>(player: &Player, opponent: &Player, rng: &mut R) -> Comma
                 0
             } else {
                 // TODO: take into account opponent attacks and defence in row?
-                8 + opponent.count_energy_towers_in_row(point.y()) + opponent.count_towers_in_row(point.y()) - player.count_attack_towers_in_row(point.y())
+                let y = usize::from(point.y());
+                8 + opponent_energy_per_row[y] + opponent_towers_per_row[y] - player_attack_per_row[y]
             };
 
             attack_end += weight;
