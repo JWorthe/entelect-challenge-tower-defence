@@ -192,7 +192,7 @@ fn random_move<R: Rng>(player: &Player, opponent: &Player, rng: &mut R) -> Comma
     let mut cdf_tesla = [0; NUMBER_OF_MAP_POSITIONS];
     
 
-    let mut other_end: u32 = 0;
+    let mut other_end: u16 = 0;
     // Nothing
     {
         let weight = 1;
@@ -212,7 +212,7 @@ fn random_move<R: Rng>(player: &Player, opponent: &Player, rng: &mut R) -> Comma
     }
 
     // Energy
-    let mut energy_end: u32 = other_end;
+    let mut energy_end: u16 = other_end;
     let needs_energy = player.energy_generated() <= ENERGY_PRODUCTION_CUTOFF ||
         player.energy <= ENERGY_STORAGE_CUTOFF;
     if needs_energy && player.energy >= ENERGY_PRICE {
@@ -232,7 +232,7 @@ fn random_move<R: Rng>(player: &Player, opponent: &Player, rng: &mut R) -> Comma
     }
 
     // Defence
-    let mut defence_end: u32 = energy_end;
+    let mut defence_end: u16 = energy_end;
     if player.energy >= DEFENCE_PRICE {
         for p in 0..NUMBER_OF_MAP_POSITIONS as u8 {
             let point = Point::new_index(p);
@@ -249,7 +249,7 @@ fn random_move<R: Rng>(player: &Player, opponent: &Player, rng: &mut R) -> Comma
     }
 
     // Attack
-    let mut attack_end: u32 = defence_end;
+    let mut attack_end: u16 = defence_end;
     if player.energy >= MISSILE_PRICE {
         for p in 0..NUMBER_OF_MAP_POSITIONS as u8 {
             let point = Point::new_index(p);
@@ -266,7 +266,7 @@ fn random_move<R: Rng>(player: &Player, opponent: &Player, rng: &mut R) -> Comma
     }
 
     // Tesla
-    let mut tesla_end: u32 = attack_end;
+    let mut tesla_end: u16 = attack_end;
     let cant_tesla = player.has_max_teslas() || player.energy < TESLA_PRICE;
     if !cant_tesla {
         for p in 0..NUMBER_OF_MAP_POSITIONS as u8 {
@@ -289,8 +289,6 @@ fn random_move<R: Rng>(player: &Player, opponent: &Player, rng: &mut R) -> Comma
     }
 
     let choice = rng.gen_range(0, cumulative_distribution);
-
-    // TODO can this be a more efficient lookup?
 
     let index = match choice {
         c if c < other_end => cdf_other.iter().position(|&c| c > choice).expect("Random number has exceeded cumulative distribution"),

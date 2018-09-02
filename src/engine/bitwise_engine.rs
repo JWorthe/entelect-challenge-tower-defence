@@ -441,23 +441,23 @@ impl Player {
         self.missile_towers.iter().fold(0, |acc, next| acc | next)
     }
 
-    pub fn count_attack_towers_in_row(&self, y: u8) -> u32 {
+    pub fn count_attack_towers_in_row(&self, y: u8) -> u16 {
         let mask = 255u64 << (y * SINGLE_MAP_WIDTH);
-        (self.any_missile_towers() & mask).count_ones()
+        (self.any_missile_towers() & mask).count_ones() as u16
     }
 
-    pub fn count_energy_towers_in_row(&self, y: u8) -> u32 {
+    pub fn count_energy_towers_in_row(&self, y: u8) -> u16 {
         let mask = 255u64 << (y * SINGLE_MAP_WIDTH);
-        (self.energy_towers & mask).count_ones()
+        (self.energy_towers & mask).count_ones() as u16
     }
 
-    pub fn count_healthy_defence_in_row(&self, y: u8) -> u32 {
+    pub fn count_healthy_defence_in_row(&self, y: u8) -> u16 {
         let mask = 255u64 << (y * SINGLE_MAP_WIDTH);
-        (self.buildings[1] & mask).count_ones()
+        (self.buildings[1] & mask).count_ones() as u16
     }
 
-    pub fn count_towers_in_row(&self, y: u8) -> u32 {
+    pub fn count_towers_in_row(&self, y: u8) -> u16 {
         let mask = 255u64 << (y * SINGLE_MAP_WIDTH);
-        (self.occupied & mask).count_ones()
+        (self.occupied & mask).count_ones() as u16
     }
 }
