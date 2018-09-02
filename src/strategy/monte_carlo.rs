@@ -185,95 +185,104 @@ fn random_move<R: Rng>(player: &Player, opponent: &Player, rng: &mut R) -> Comma
         };
     }
 
-    let mut cdf = [0; NUMBER_OF_POSSIBLE_MOVES];
-    let mut cumulative_distribution: u32 = 0;
+    let mut cdf_other = [0; 2];
+    let mut cdf_energy = [0; NUMBER_OF_MAP_POSITIONS];
+    let mut cdf_defence = [0; NUMBER_OF_MAP_POSITIONS];
+    let mut cdf_attack = [0; NUMBER_OF_MAP_POSITIONS];
+    let mut cdf_tesla = [0; NUMBER_OF_MAP_POSITIONS];
+    
 
+    let mut other_end: u32 = 0;
     // Nothing
     {
-        let weight = 0;
-        cumulative_distribution += weight;
-        cdf[0] = cumulative_distribution;
+        let weight = 1;
+        other_end += weight;
+        cdf_other[0] = other_end;
     }
     
     // Iron Curtain
     {
         let weight = if player.can_build_iron_curtain() && player.energy >= IRON_CURTAIN_PRICE {
-            20
+            30
         } else {
             0
         };
-        cumulative_distribution += weight;
-        cdf[1] = cumulative_distribution;
+        other_end += weight;
+        cdf_other[1] = other_end;
     }
 
     // Energy
-    let e_base = 2;
+    let mut energy_end: u32 = other_end;
     let needs_energy = player.energy_generated() <= ENERGY_PRODUCTION_CUTOFF ||
         player.energy <= ENERGY_STORAGE_CUTOFF;
-    for p in 0..NUMBER_OF_MAP_POSITIONS as u8 {
-        let i = e_base + p as usize;
-        let point = Point::new_index(p);
-        let weight = if !needs_energy || player.energy < ENERGY_PRICE || player.occupied & point.to_either_bitfield() != 0 {
-            0
-        } else if point.x() < 2 {
-            2
-        } else {
-            1
-        };
+    if needs_energy && player.energy >= ENERGY_PRICE {
+        for p in 0..NUMBER_OF_MAP_POSITIONS as u8 {
+            let point = Point::new_index(p);
+            let weight = if player.occupied & point.to_either_bitfield() != 0 {
+                0
+            } else if point.x() < 2 {
+                2
+            } else {
+                1
+            };
 
-        cumulative_distribution += weight;
-        cdf[i] = cumulative_distribution;
+            energy_end += weight;
+            cdf_energy[p as usize] = energy_end;
+        }
     }
 
     // Defence
-    let d_base = e_base + NUMBER_OF_MAP_POSITIONS;
-    for p in 0..NUMBER_OF_MAP_POSITIONS as u8 {
-        let i = d_base + p as usize;
-        let point = Point::new_index(p);
-        let weight = if player.energy < DEFENCE_PRICE || player.occupied & point.to_either_bitfield() != 0 {
-            0
-        } else {
-            //TODO: Favour the front and rows with something to defend
-            opponent.count_attack_towers_in_row(point.y())
-        };
+    let mut defence_end: u32 = energy_end;
+    if player.energy >= DEFENCE_PRICE {
+        for p in 0..NUMBER_OF_MAP_POSITIONS as u8 {
+            let point = Point::new_index(p);
+            let weight = if player.occupied & point.to_either_bitfield() != 0 {
+                0
+            } else {
+                //TODO: Favour the front and rows with something to defend
+                opponent.count_attack_towers_in_row(point.y())
+            };
 
-        cumulative_distribution += weight;
-        cdf[i] = cumulative_distribution;
+            defence_end += weight;
+            cdf_defence[p as usize] = defence_end;
+        }
     }
 
     // Attack
-    let a_base = d_base + NUMBER_OF_MAP_POSITIONS;
-    for p in 0..NUMBER_OF_MAP_POSITIONS as u8 {
-        let i = a_base + p as usize;
-        let point = Point::new_index(p);
-        let weight = if  player.energy < MISSILE_PRICE || player.occupied & point.to_either_bitfield() != 0 {
-            0
-        } else {
-            // TODO: take into account opponent attacks and defence in row?
-            8 + opponent.count_energy_towers_in_row(point.y()) - player.count_attack_towers_in_row(point.y())
-        };
+    let mut attack_end: u32 = defence_end;
+    if player.energy >= MISSILE_PRICE {
+        for p in 0..NUMBER_OF_MAP_POSITIONS as u8 {
+            let point = Point::new_index(p);
+            let weight = if player.occupied & point.to_either_bitfield() != 0 {
+                0
+            } else {
+                // TODO: take into account opponent attacks and defence in row?
+                8 + opponent.count_energy_towers_in_row(point.y()) - player.count_attack_towers_in_row(point.y())
+            };
 
-        cumulative_distribution += weight;
-        cdf[i] = cumulative_distribution;
+            attack_end += weight;
+            cdf_attack[p as usize] = attack_end;
+        }
     }
 
     // Tesla
-    let t_base = a_base + NUMBER_OF_MAP_POSITIONS;
+    let mut tesla_end: u32 = attack_end;
     let cant_tesla = player.has_max_teslas() || player.energy < TESLA_PRICE;
-    for p in 0..NUMBER_OF_MAP_POSITIONS as u8 {
-        let i = t_base + p as usize;
-        let point = Point::new_index(p);
-        let weight = if cant_tesla || (player.occupied & point.to_either_bitfield() != 0) || point.y() < 7 {
-            0
-        } else {
-            2
-        };
+    if !cant_tesla {
+        for p in 0..NUMBER_OF_MAP_POSITIONS as u8 {
+            let point = Point::new_index(p);
+            let weight = if (player.occupied & point.to_either_bitfield() != 0) || point.y() < 7 {
+                0
+            } else {
+                2
+            };
 
-        cumulative_distribution += weight;
-        cdf[i] = cumulative_distribution;
+            tesla_end += weight;
+            cdf_tesla[p as usize] = tesla_end;
+        }
     }
 
-    debug_assert_eq!(MOVES.len(), t_base + NUMBER_OF_MAP_POSITIONS);
+    let cumulative_distribution = tesla_end;
 
     if cumulative_distribution == 0 {
         return Command::Nothing;
@@ -282,7 +291,14 @@ fn random_move<R: Rng>(player: &Player, opponent: &Player, rng: &mut R) -> Comma
     let choice = rng.gen_range(0, cumulative_distribution);
 
     // TODO can this be a more efficient lookup?
-    let index = cdf.iter().position(|&c| c > choice).expect("Random number has exceeded cumulative distribution");
+
+    let index = match choice {
+        c if c < other_end => cdf_other.iter().position(|&c| c > choice).expect("Random number has exceeded cumulative distribution"),
+        c if c < energy_end => 2 + cdf_energy.iter().position(|&c| c > choice).expect("Random number has exceeded cumulative distribution"),
+        c if c < defence_end => 2 + NUMBER_OF_MAP_POSITIONS + cdf_defence.iter().position(|&c| c > choice).expect("Random number has exceeded cumulative distribution"),
+        c if c < attack_end => 2 + 2 * NUMBER_OF_MAP_POSITIONS + cdf_attack.iter().position(|&c| c > choice).expect("Random number has exceeded cumulative distribution"),
+        _ => 2 + 3 * NUMBER_OF_MAP_POSITIONS + cdf_tesla.iter().position(|&c| c > choice).expect("Random number has exceeded cumulative distribution"),
+    };
 
     MOVES[index]
 }
