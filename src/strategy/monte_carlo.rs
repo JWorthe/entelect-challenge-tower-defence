@@ -220,10 +220,8 @@ fn random_move<R: Rng>(player: &Player, opponent: &Player, rng: &mut R) -> Comma
             let point = Point::new_index(p);
             let weight = if player.occupied & point.to_either_bitfield() != 0 {
                 0
-            } else if point.x() < 2 {
-                2
             } else {
-                1
+                2
             };
 
             energy_end += weight;
