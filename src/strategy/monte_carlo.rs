@@ -102,7 +102,7 @@ fn simulate_options_to_timeout<'a>(command_scores: &'a mut Vec<CommandScore>, st
     use std::cmp;
     let min_options = cmp::min(command_scores.len(), 5);
     
-    let maxes = [max_time / 4, max_time / 2, max_time * 3 / 4, max_time];
+    let maxes = [max_time / 3, max_time * 2 / 3, max_time];
     for (i, &max) in maxes.iter().enumerate() {
         let new_length = cmp::max(min_options, command_scores.len() / (2usize.pow(i as u32)));
         let active_scores = &mut command_scores[0..new_length];
@@ -194,11 +194,13 @@ fn random_move<R: Rng>(player: &Player, opponent: &Player, rng: &mut R) -> Comma
     let mut opponent_energy_per_row = [0; MAP_HEIGHT as usize];
     let mut opponent_attack_per_row = [0; MAP_HEIGHT as usize];
     let mut opponent_towers_per_row = [0; MAP_HEIGHT as usize];
+    let mut player_energy_per_row = [0; MAP_HEIGHT as usize];
     let mut player_attack_per_row = [0; MAP_HEIGHT as usize];
     for y in 0..MAP_HEIGHT {
         opponent_energy_per_row[y as usize] = opponent.count_energy_towers_in_row(y);
         opponent_attack_per_row[y as usize] = opponent.count_attack_towers_in_row(y);
         opponent_towers_per_row[y as usize] = opponent.count_towers_in_row(y);
+        player_energy_per_row[y as usize] = player.count_energy_towers_in_row(y);
         player_attack_per_row[y as usize] = player.count_attack_towers_in_row(y);
     }
     
@@ -206,7 +208,11 @@ fn random_move<R: Rng>(player: &Player, opponent: &Player, rng: &mut R) -> Comma
     let mut other_end: u16 = 0;
     // Nothing
     {
-        let weight = 1;
+        let weight = if player.can_build_iron_curtain() && player.energy < IRON_CURTAIN_PRICE {
+            5
+        } else {
+            0
+        };
         other_end += weight;
         cdf_other[0] = other_end;
     }
@@ -214,7 +220,7 @@ fn random_move<R: Rng>(player: &Player, opponent: &Player, rng: &mut R) -> Comma
     // Iron Curtain
     {
         let weight = if player.can_build_iron_curtain() && player.energy >= IRON_CURTAIN_PRICE {
-            30
+            50
         } else {
             0
         };
@@ -245,11 +251,12 @@ fn random_move<R: Rng>(player: &Player, opponent: &Player, rng: &mut R) -> Comma
     if player.energy >= DEFENCE_PRICE {
         for p in 0..NUMBER_OF_MAP_POSITIONS as u8 {
             let point = Point::new_index(p);
-            let weight = if player.occupied & point.to_either_bitfield() != 0 {
+            let y = usize::from(point.y());
+
+            let weight = if player.occupied & point.to_either_bitfield() != 0 || point.x() < 4 || opponent_attack_per_row[y] == 0 {
                 0
             } else {
-                //TODO: Favour the front and rows with something to defend
-                opponent_attack_per_row[usize::from(point.y())]
+                5
             };
 
             defence_end += weight;
@@ -265,7 +272,6 @@ fn random_move<R: Rng>(player: &Player, opponent: &Player, rng: &mut R) -> Comma
             let weight = if player.occupied & point.to_either_bitfield() != 0 {
                 0
             } else {
-                // TODO: take into account opponent attacks and defence in row?
                 let y = usize::from(point.y());
                 8 + opponent_energy_per_row[y] + opponent_towers_per_row[y] - player_attack_per_row[y]
             };
@@ -284,7 +290,7 @@ fn random_move<R: Rng>(player: &Player, opponent: &Player, rng: &mut R) -> Comma
             let weight = if (player.occupied & point.to_either_bitfield() != 0) || point.y() < 7 {
                 0
             } else {
-                2
+                10
             };
 
             tesla_end += weight;
