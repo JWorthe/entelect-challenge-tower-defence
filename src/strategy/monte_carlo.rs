@@ -87,9 +87,9 @@ fn debug_print_choices<F: FnMut(&CommandScore) -> Option<(Point, i32)>>(label: &
 }
 
 #[cfg(not(feature = "discard-poor-performers"))]
-fn simulate_options_to_timeout(command_scores: &'a mut Vec<CommandScore>, settings: &GameSettings, state: &BitwiseGameState, start_time: PreciseTime, max_time: Duration) -> Option<&'a CommandScore> {
+fn simulate_options_to_timeout<'a>(command_scores: &'a mut Vec<CommandScore>, state: &BitwiseGameState, start_time: PreciseTime, max_time: Duration) -> Option<&'a CommandScore> {
     loop {
-        simulate_all_options_once(command_scores, settings, state);
+        simulate_all_options_once(command_scores, state);
         if start_time.to(PreciseTime::now()) > max_time {
             break;
         }
