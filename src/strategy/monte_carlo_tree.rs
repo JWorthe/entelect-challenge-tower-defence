@@ -44,54 +44,86 @@ impl SearchTree {
 }
 
 impl FullyExploredStats {
-    fn node_with_highest_ucb<'a>(&'a self) -> &'a (Command, SearchTree) {
+    fn node_with_highest_ucb<'a>(&'a mut self) -> &'a mut (Command, SearchTree) {
         //TODO
-        &self.explored[0]
+        &mut self.explored[0]
     }
 }
 
 impl PartiallyExploredStats {
-    fn add_node(&mut self, command: Command) {
-        //TODO
+    fn add_node<'a>(&'a mut self, state: &Player, command: Command) -> &'a mut (Command, SearchTree) {
+        //TODO: Insert
+        let node = SearchTree::create_node(state);
+        self.explored.push((command, node));
+        self.explored.last_mut().unwrap()
     }
 }
 
-
+use self::SearchTree::*;
 pub fn choose_move(state: &BitwiseGameState, start_time: PreciseTime, max_time: Duration) -> Command {
-    use self::SearchTree::*;
+    
     
     // create root node as partially explored node
     // creating a new node needs to populate all (valid) unexplored moves
 
-    let root = SearchTree::create_node(&state.player);
+    let mut root = SearchTree::create_node(&state.player);
 
     loop {
-        //tree_search(&state, &mut root);
+        // TODO: Break out!
+        tree_search(&state, &mut root);
     }
     
     Command::Nothing    
 }
 
-/*
+// TODO: Max depth
+
 fn tree_search(state: &BitwiseGameState, tree: &mut SearchTree) -> bool {
     match tree {
         Leaf(stats) => {
             // ???
             false
         },
-        FullyExploredNode(stats) => {
+        FullyExploredNode(ref mut stats) => {
             let (next_command, next_tree) = stats.node_with_highest_ucb();
-            tree_search(state, &mut next_tree)
-            // TODO: Swap players?
+            tree_search_opponent(state, next_tree, next_command.clone())
             // TODO: Back-propagation?
         },
-        PartiallyExploredNode(stats) => {
-            //   choose random command and add as partially explored node to the tree
-            //   simulate to end with random commands
-            //   back-propagate (remember to keep a stack of commands to that point node)
-            //   convert to fully explored if applicable
+        PartiallyExploredNode(ref mut stats) => {
+            let next_command = stats.unexplored[0].clone(); // TODO: Random
+            let next_tree = stats.add_node(&state.opponent, next_command);
+
+            // TODO: simulate to end
+            // TODO: Back-propagate
+            false
         }
     }
-    
 }
-*/
+
+fn tree_search_opponent(state: &BitwiseGameState, tree: &mut SearchTree, player_command: Command) -> bool {
+    match tree {
+        Leaf(stats) => {
+            // ???
+            false
+        },
+        FullyExploredNode(ref mut stats) => {
+            let (next_command, next_tree) = stats.node_with_highest_ucb();
+            let mut next_state = state.clone();
+            next_state.simulate(player_command, next_command.clone());
+            tree_search(&next_state, next_tree)
+            // TODO: Back-propagation?
+        },
+        PartiallyExploredNode(ref mut stats) => {
+            let next_command = stats.unexplored[0].clone(); // TODO: Random
+            
+            let mut next_state = state.clone();
+            next_state.simulate(player_command, next_command.clone());
+            
+            let next_tree = stats.add_node(&next_state.player, next_command);
+
+            // TODO: simulate to end
+            // TODO: Back-propagate
+            false
+        }
+    }
+}
