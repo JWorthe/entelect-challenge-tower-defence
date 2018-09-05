@@ -476,4 +476,8 @@ impl Player {
         let mask = ROW_MASKS[y as usize];
         (self.occupied & mask).count_ones() as u16
     }
+
+    pub fn count_towers(&self) -> u32 {
+        self.occupied.count_ones()
+    }
 }

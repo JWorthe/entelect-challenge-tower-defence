@@ -160,8 +160,8 @@ fn simulate_to_endstate<R: Rng>(command_score: &mut CommandScore, state: &Bitwis
     let mut next_seed: [u8;16] = [0; 16];
     rng.fill_bytes(&mut next_seed);
     match status {
-        GameStatus::PlayerWon => command_score.add_victory(next_seed),
-        GameStatus::OpponentWon => command_score.add_defeat(next_seed),
+        GameStatus::PlayerWon => command_score.add_victory(state_mut.player.count_towers() as i32 - state_mut.opponent.count_towers() as i32, next_seed),
+        GameStatus::OpponentWon => command_score.add_defeat(state_mut.opponent.count_towers() as i32 - state_mut.player.count_towers() as i32, next_seed),
         GameStatus::Continue => command_score.add_stalemate(next_seed),
         GameStatus::Draw => command_score.add_draw(next_seed)
     }
@@ -342,7 +342,9 @@ fn random_move<R: Rng>(player: &Player, _opponent: &Player, rng: &mut R) -> Comm
 struct CommandScore {
     command: Command,
     starts_with_nothing: bool,
+    victory_score: i32,
     victories: u32,
+    defeat_score: i32,
     defeats: u32,
     draws: u32,
     stalemates: u32,
@@ -354,7 +356,9 @@ impl CommandScore {
     fn new(command: Command, starts_with_nothing: bool) -> CommandScore {
         CommandScore {
             command, starts_with_nothing,
+            victory_score: 0,
             victories: 0,
+            defeat_score: 0,
             defeats: 0,
             draws: 0,
             stalemates: 0,
@@ -363,13 +367,15 @@ impl CommandScore {
         }
     }
 
-    fn add_victory(&mut self, next_seed: [u8; 16]) {
+    fn add_victory(&mut self, weight: i32, next_seed: [u8; 16]) {
+        self.victory_score += weight;
         self.victories += 1;
         self.attempts += 1;
         self.next_seed = next_seed;
     }
 
-    fn add_defeat(&mut self, next_seed: [u8; 16]) {
+    fn add_defeat(&mut self, weight: i32, next_seed: [u8; 16]) {
+        self.defeat_score += weight;
         self.defeats += 1;
         self.attempts += 1;
         self.next_seed = next_seed;
@@ -388,7 +394,7 @@ impl CommandScore {
     }
 
     fn win_ratio(&self) -> i32 {
-        (self.victories as i32 - self.defeats as i32) * 10000 / (self.attempts as i32)
+        (self.victory_score - self.defeat_score) * 10000 / (self.attempts as i32)
     }
 
     fn init_command_scores(state: &BitwiseGameState) -> Vec<CommandScore> {
