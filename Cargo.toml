@@ -29,7 +29,7 @@ energy-cutoff = []
 discard-poor-performers = []
 heuristic-random = ["lazy_static"]
 
-default = ["energy-cutoff", "discard-poor-performers", "heuristic-random", "debug-decisions"]
+default = ["energy-cutoff", "discard-poor-performers", "heuristic-random"]
 
 [profile.release]
 debug = true
