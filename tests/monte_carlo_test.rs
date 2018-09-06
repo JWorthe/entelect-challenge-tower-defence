@@ -19,3 +19,16 @@ fn it_does_a_normal_turn_successfully() {
 
     assert!(start_time.to(PreciseTime::now()) < max_time + Duration::milliseconds(50))
 }
+
+#[test]
+fn it_does_a_normal_tree_serach_turn_successfully() {
+    let start_time = PreciseTime::now();
+    let state = match input::json::read_bitwise_state_from_file(STATE_PATH) {
+        Ok(ok) => ok,
+        Err(error) => panic!("Error while parsing JSON file: {}", error)
+    };
+    let max_time = Duration::milliseconds(20000);
+    strategy::monte_carlo_tree::choose_move(&state, start_time, max_time);
+
+    assert!(start_time.to(PreciseTime::now()) < max_time + Duration::milliseconds(50))
+}

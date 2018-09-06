@@ -66,6 +66,7 @@ impl NodeStats {
     
     fn node_with_highest_ucb<'a>(&'a mut self) -> &'a mut (Command, NodeStats) {
         debug_assert!(self.unexplored.is_empty());
+        debug_assert!(self.explored.len() > 0);
         let total_attempts = self.explored.iter().map(|(_, n)| n.attempts).sum::<f32>();
 
         let mut max_position = 0;
@@ -102,6 +103,10 @@ impl NodeStats {
     fn add_draw(&mut self) {
         self.attempts += 1.;
     }
+
+    fn count_explored(&self) -> usize {
+        1 + self.explored.iter().map(|(_, n)| n.count_explored()).sum::<usize>()
+    }
 }
 
 pub fn choose_move(state: &BitwiseGameState, start_time: PreciseTime, max_time: Duration) -> Command {
@@ -111,6 +116,11 @@ pub fn choose_move(state: &BitwiseGameState, start_time: PreciseTime, max_time: 
 
     while start_time.to(PreciseTime::now()) < max_time {
         tree_search(&state, &mut root, &mut rng);
+    }
+
+    #[cfg(feature = "benchmarking")]
+    {
+        println!("Explored nodes: {}", root.count_explored());
     }
 
     let (command, _) = root.node_with_highest_ucb();
