@@ -5,3 +5,4 @@ pub enum GameStatus {
     OpponentWon,
     Draw
 }
+

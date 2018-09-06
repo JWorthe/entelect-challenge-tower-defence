@@ -22,7 +22,6 @@ fn write_command(filename: &str, command: Command) -> Result<(), Box<Error> > {
     Ok(())
 }
 
-
 fn main() {
     let start_time = PreciseTime::now();
     let max_time = Duration::milliseconds(MAX_TIME_MILLIS);
@@ -34,6 +33,8 @@ fn main() {
             process::exit(1);
         }
     };
+
+    // TODO: Opening playbook?
     let command = strategy::monte_carlo::choose_move(&state, start_time, max_time);
 
     match write_command(COMMAND_PATH, command) {

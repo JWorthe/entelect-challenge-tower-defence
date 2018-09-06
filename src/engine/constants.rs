@@ -2,6 +2,9 @@ pub const FULL_MAP_WIDTH: u8 = 16;
 pub const SINGLE_MAP_WIDTH: u8 = FULL_MAP_WIDTH/2;
 pub const MAP_HEIGHT: u8 = 8;
 
+pub const MAX_MOVES: u16 = 400;
+pub const INIT_SEED: [u8;16] = [0x7b, 0x6a, 0xe1, 0xf4, 0x41, 0x3c, 0xe9, 0x0f, 0x67, 0x81, 0x67, 0x99, 0x77, 0x0a, 0x6b, 0xda];
+
 pub const MISSILE_COOLDOWN: usize = 3;
 pub const MISSILE_COOLDOWN_STATES: usize = MISSILE_COOLDOWN+1;
 pub const MISSILE_SPEED: usize = 2;

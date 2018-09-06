@@ -10,9 +10,6 @@ use rand::{Rng, XorShiftRng, SeedableRng};
 
 use arrayvec::ArrayVec;
 
-const MAX_MOVES: u16 = 400;
-const INIT_SEED: [u8;16] = [0x7b, 0x6a, 0xe1, 0xf4, 0x41, 0x3c, 0xe9, 0x0f, 0x67, 0x81, 0x67, 0x99, 0x77, 0x0a, 0x6b, 0xda];
-
 use time::{Duration, PreciseTime};
 
 #[cfg(not(feature = "single-threaded"))]
@@ -168,7 +165,7 @@ fn simulate_to_endstate<R: Rng>(command_score: &mut CommandScore, state: &Bitwis
 }
 
 #[cfg(feature = "heuristic-random")]
-fn random_move<R: Rng>(player: &Player, opponent: &Player, rng: &mut R) -> Command {
+pub fn random_move<R: Rng>(player: &Player, opponent: &Player, rng: &mut R) -> Command {
     lazy_static! {
         static ref MOVES: [Command; NUMBER_OF_POSSIBLE_MOVES] = {
             let mut m = [Command::Nothing; NUMBER_OF_POSSIBLE_MOVES];
@@ -318,7 +315,7 @@ fn random_move<R: Rng>(player: &Player, opponent: &Player, rng: &mut R) -> Comma
 }
 
 #[cfg(not(feature = "heuristic-random"))]
-fn random_move<R: Rng>(player: &Player, _opponent: &Player, rng: &mut R) -> Command {
+pub fn random_move<R: Rng>(player: &Player, _opponent: &Player, rng: &mut R) -> Command {
     let free_positions_count = player.unoccupied_cell_count();
 
     let open_building_spot = free_positions_count > 0;
