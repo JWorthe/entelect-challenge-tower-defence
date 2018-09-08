@@ -188,17 +188,19 @@ pub fn random_move<R: Rng>(player: &Player, opponent: &Player, rng: &mut R) -> C
     let mut cdf_attack = [0; NUMBER_OF_MAP_POSITIONS];
     let mut cdf_tesla = [0; NUMBER_OF_MAP_POSITIONS];
 
-    let mut opponent_energy_per_row = [0; MAP_HEIGHT as usize];
-    let mut opponent_attack_per_row = [0; MAP_HEIGHT as usize];
-    let mut opponent_towers_per_row = [0; MAP_HEIGHT as usize];
-    let mut player_energy_per_row = [0; MAP_HEIGHT as usize];
-    let mut player_attack_per_row = [0; MAP_HEIGHT as usize];
+    let mut attack_metric_per_row = [0; MAP_HEIGHT as usize];
+    let mut defence_metric_per_row = [0; MAP_HEIGHT as usize];
     for y in 0..MAP_HEIGHT {
-        opponent_energy_per_row[y as usize] = opponent.count_energy_towers_in_row(y);
-        opponent_attack_per_row[y as usize] = opponent.count_attack_towers_in_row(y);
-        opponent_towers_per_row[y as usize] = opponent.count_towers_in_row(y);
-        player_energy_per_row[y as usize] = player.count_energy_towers_in_row(y);
-        player_attack_per_row[y as usize] = player.count_attack_towers_in_row(y);
+        let opponent_energy = opponent.count_energy_towers_in_row(y);
+        let opponent_attack = opponent.count_attack_towers_in_row(y);
+        let opponent_towers = opponent.count_towers_in_row(y);
+
+        let player_energy = player.count_energy_towers_in_row(y);
+        let player_attack = player.count_attack_towers_in_row(y);
+        let player_towers = player.count_towers_in_row(y);
+
+        defence_metric_per_row[y as usize] = if opponent_attack == 0 { 0 } else { opponent_attack + player_towers };
+        attack_metric_per_row[y as usize] = 8 + opponent_energy + opponent_towers + player_energy - player_attack;
     }
     
 
@@ -250,10 +252,10 @@ pub fn random_move<R: Rng>(player: &Player, opponent: &Player, rng: &mut R) -> C
             let point = Point::new_index(p);
             let y = usize::from(point.y());
 
-            let weight = if player.occupied & point.to_either_bitfield() != 0 || point.x() < 4 || opponent_attack_per_row[y] == 0 {
+            let weight = if player.occupied & point.to_either_bitfield() != 0 || point.x() < 4 {
                 0
             } else {
-                5
+                defence_metric_per_row[y]
             };
 
             defence_end += weight;
@@ -270,7 +272,7 @@ pub fn random_move<R: Rng>(player: &Player, opponent: &Player, rng: &mut R) -> C
                 0
             } else {
                 let y = usize::from(point.y());
-                8 + opponent_energy_per_row[y] + opponent_towers_per_row[y] - player_attack_per_row[y]
+                attack_metric_per_row[y]
             };
 
             attack_end += weight;
