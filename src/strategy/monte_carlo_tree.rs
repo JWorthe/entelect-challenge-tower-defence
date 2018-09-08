@@ -2,7 +2,6 @@ use engine::command::*;
 use engine::status::GameStatus;
 use engine::bitwise_engine::{Player, BitwiseGameState};
 use engine::constants::*;
-use engine::geometry::*;
 
 use rand::{Rng, XorShiftRng, SeedableRng};
 use time::{Duration, PreciseTime};
@@ -104,6 +103,7 @@ impl NodeStats {
         self.attempts += 1.;
     }
 
+    #[cfg(feature = "benchmarking")]
     fn count_explored(&self) -> usize {
         1 + self.explored.iter().map(|(_, n)| n.count_explored()).sum::<usize>()
     }

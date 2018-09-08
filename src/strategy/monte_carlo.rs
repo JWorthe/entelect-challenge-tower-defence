@@ -470,7 +470,7 @@ fn sensible_buildings(player: &Player, open_building_spot: bool) -> ArrayVec<[Bu
     result
 }
 
-#[cfg(all(not(feature = "heuristic-random"), feature = "energy-cutoff")]
+#[cfg(all(not(feature = "heuristic-random"), feature = "energy-cutoff"))]
 fn sensible_buildings(player: &Player, open_building_spot: bool) -> ArrayVec<[BuildingType; NUMBER_OF_BUILDING_TYPES]> {
     let mut result = ArrayVec::new();
     if !open_building_spot {
