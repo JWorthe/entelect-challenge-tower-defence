@@ -10,10 +10,6 @@ const STATE_PATH: &str = "tests/state0.json";
 use std::process;
 
 fn main() {
-    bitwise();
-}
-
-fn bitwise() {
     println!("Running bitwise engine");
     let start_time = PreciseTime::now();
     let state = match input::json::read_bitwise_state_from_file(STATE_PATH) {
@@ -24,5 +20,7 @@ fn bitwise() {
         }
     };
     let max_time = Duration::milliseconds(MAX_TIME_MILLIS);
-    strategy::monte_carlo::choose_move(&state, start_time, max_time);
+
+    #[cfg(feature = "full-monte-carlo-tree")] strategy::monte_carlo_tree::choose_move(&state, start_time, max_time);
+    #[cfg(not(feature = "full-monte-carlo-tree"))] strategy::monte_carlo::choose_move(&state, start_time, max_time);
 }

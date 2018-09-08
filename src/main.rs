@@ -35,7 +35,8 @@ fn main() {
     };
 
     // TODO: Opening playbook?
-    let command = strategy::monte_carlo::choose_move(&state, start_time, max_time);
+    #[cfg(feature = "full-monte-carlo-tree")] let command = strategy::monte_carlo_tree::choose_move(&state, start_time, max_time);
+    #[cfg(not(feature = "full-monte-carlo-tree"))] let command = strategy::monte_carlo::choose_move(&state, start_time, max_time);
 
     match write_command(COMMAND_PATH, command) {
         Ok(()) => {}
