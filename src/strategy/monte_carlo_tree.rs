@@ -70,8 +70,7 @@ impl NodeStats {
     fn node_with_highest_ucb<'a>(&'a mut self) -> &'a mut (Command, NodeStats) {
         debug_assert!(self.unexplored.is_empty());
         debug_assert!(self.explored.len() > 0);
-        let total_attempts = self.explored.iter().map(|(_, n)| n.attempts).sum::<f32>();
-        let sqrt_n = total_attempts.sqrt();
+        let sqrt_n = self.attempts.sqrt();
 
         let mut max_position = 0;
         let mut max_value = self.explored[0].1.ucb(sqrt_n);
