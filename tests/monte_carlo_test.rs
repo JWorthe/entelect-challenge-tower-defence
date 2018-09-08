@@ -27,7 +27,7 @@ fn it_does_a_normal_tree_serach_turn_successfully() {
         Ok(ok) => ok,
         Err(error) => panic!("Error while parsing JSON file: {}", error)
     };
-    let max_time = Duration::milliseconds(20000);
+    let max_time = Duration::milliseconds(200);
     strategy::monte_carlo_tree::choose_move(&state, start_time, max_time);
 
     assert!(start_time.to(PreciseTime::now()) < max_time + Duration::milliseconds(50))

@@ -398,8 +398,14 @@ impl CommandScore {
         self.next_seed = next_seed;
     }
 
+    #[cfg(feature = "weighted-win-ratio")]
     fn win_ratio(&self) -> i32 {
         (self.victory_score - self.defeat_score) * 10000 / (self.attempts as i32)
+    }
+
+    #[cfg(not(feature = "weighted-win-ratio"))]
+    fn win_ratio(&self) -> i32 {
+        (self.victories as i32 - self.defeats as i32) * 10000 / (self.attempts as i32)
     }
 
     fn init_command_scores(state: &BitwiseGameState) -> Vec<CommandScore> {

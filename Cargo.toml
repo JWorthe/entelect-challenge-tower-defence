@@ -30,8 +30,9 @@ discard-poor-performers = []
 heuristic-random = ["lazy_static"]
 full-monte-carlo-tree = []
 static-opening = []
+weighted-win-ratio = []
 
-default = ["energy-cutoff", "discard-poor-performers", "heuristic-random", "static-opening", "debug-decisions"]
+default = ["energy-cutoff", "discard-poor-performers", "heuristic-random", "static-opening", "weighted-win-ratio", "debug-decisions"]
 
 [profile.release]
 debug = true
