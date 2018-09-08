@@ -29,8 +29,9 @@ energy-cutoff = []
 discard-poor-performers = []
 heuristic-random = ["lazy_static"]
 full-monte-carlo-tree = []
+static-opening = []
 
-default = ["energy-cutoff", "discard-poor-performers", "heuristic-random"]
+default = ["energy-cutoff", "discard-poor-performers", "heuristic-random", "static-opening", "debug-decisions"]
 
 [profile.release]
 debug = true

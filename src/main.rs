@@ -34,9 +34,13 @@ fn main() {
         }
     };
 
-    // TODO: Opening playbook?
-    #[cfg(feature = "full-monte-carlo-tree")] let command = strategy::monte_carlo_tree::choose_move(&state, start_time, max_time);
-    #[cfg(not(feature = "full-monte-carlo-tree"))] let command = strategy::monte_carlo::choose_move(&state, start_time, max_time);
+    let command = if cfg!(feature = "static-opening") && state.round < strategy::static_opening::STATIC_OPENING_LENGTH {
+        strategy::static_opening::choose_move(&state)
+    } else if cfg!(feature = "full-monte-carlo-tree") {
+        strategy::monte_carlo_tree::choose_move(&state, start_time, max_time)
+    } else {
+        strategy::monte_carlo::choose_move(&state, start_time, max_time)
+    };
 
     match write_command(COMMAND_PATH, command) {
         Ok(()) => {}
@@ -48,3 +52,4 @@ fn main() {
 
     println!("Elapsed time: {}", start_time.to(PreciseTime::now()));
 }
+
