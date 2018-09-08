@@ -32,7 +32,4 @@ full-monte-carlo-tree = []
 static-opening = []
 weighted-win-ratio = []
 
-default = ["energy-cutoff", "discard-poor-performers", "heuristic-random", "static-opening", "weighted-win-ratio", "debug-decisions"]
-
-[profile.release]
-debug = true
+default = ["energy-cutoff", "discard-poor-performers", "static-opening", "weighted-win-ratio"]
