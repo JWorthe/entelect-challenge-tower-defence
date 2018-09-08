@@ -1,3 +1,5 @@
+default: build
+
 build:
 	cargo build --release
 
@@ -19,4 +21,4 @@ clean:
 submission.zip: bot.json Cargo.lock Cargo.toml src
 	zip -r9 submission.zip bot.json Cargo.lock Cargo.toml src
 
-.PHONY: build test bench profile clean
+.PHONY: default build test bench profile clean
