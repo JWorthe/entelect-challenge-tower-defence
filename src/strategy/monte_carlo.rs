@@ -371,14 +371,16 @@ impl CommandScore {
     }
 
     fn add_victory(&mut self, weight: i32, next_seed: [u8; 16]) {
-        self.victory_score += weight;
+        use std::cmp;
+        self.victory_score += cmp::max(weight, 1);
         self.victories += 1;
         self.attempts += 1;
         self.next_seed = next_seed;
     }
 
     fn add_defeat(&mut self, weight: i32, next_seed: [u8; 16]) {
-        self.defeat_score += weight;
+        use std::cmp;
+        self.defeat_score += cmp::max(weight, 1);
         self.defeats += 1;
         self.attempts += 1;
         self.next_seed = next_seed;
@@ -445,7 +447,7 @@ impl fmt::Display for CommandScore {
     }
 }
 
-#[cfg(not(feature = "energy-cutoff"))]
+#[cfg(all(not(feature = "heuristic-random"), not(feature = "energy-cutoff")))]
 fn sensible_buildings(player: &Player, open_building_spot: bool) -> ArrayVec<[BuildingType; NUMBER_OF_BUILDING_TYPES]> {
     let mut result = ArrayVec::new();
     if !open_building_spot {
@@ -468,7 +470,7 @@ fn sensible_buildings(player: &Player, open_building_spot: bool) -> ArrayVec<[Bu
     result
 }
 
-#[cfg(feature = "energy-cutoff")]
+#[cfg(all(not(feature = "heuristic-random"), feature = "energy-cutoff")]
 fn sensible_buildings(player: &Player, open_building_spot: bool) -> ArrayVec<[BuildingType; NUMBER_OF_BUILDING_TYPES]> {
     let mut result = ArrayVec::new();
     if !open_building_spot {
