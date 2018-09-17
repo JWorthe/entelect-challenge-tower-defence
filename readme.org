@@ -1,0 +1,52 @@
+* Entelect Challenge 2018 - Tower Defence - Rustbot
+
+This is the source code for my [[https://challenge.entelect.co.za/][Entelect Challenge]] 2018 bot. It did
+really well, coming in 3rd place in the finals.
+
+** How does it work?
+
+I've put together a blog post with the high level overview of how I
+got to this point and how it works [[https://www.offerzen.com/blog/coding-for-the-win-how-i-built-a-tower-defence-bot][here]]. I will be putting up more
+articles diving into the details shortly.
+
+The short explanation is that it's a Monte Carlo Tree Search. All
+possible moved I can make from the first state are generated. I then
+iterate through the list of possible moved and play random games that
+start with that move. The move that statistically wins the most random
+games is taken as the best move.
+
+** Environment Setup
+
+The Rust compiler tool-chain can be downloaded from the Rust project
+website.
+
+https://www.rust-lang.org/en-US/install.html
+
+** Compilation
+
+The bot is written in Rust, and compiled using Cargo. For the sake of
+running the bot in the tournament, you have to compile using the
+~--release~ flag (this is specified in [[./bot.json]]).
+
+#+BEGIN_SRC shell
+    cargo build --release
+#+END_SRC
+
+After compilation, there will be an executable in ~target/release/~.
+
+** Other useful commands
+
+You can find other interesting commands that I used in writing the bot
+in the [[./Makefile]]. Some notable ones are:
+
+- ~make bench~: compiles with the benchmarking feature turned on, and
+  runs my end to end benchmark.
+- ~make profile~: similar to the benchmark, but runs single threaded,
+  for a longer time, and uses ~perf~ to gather statistics on the run.
+- ~make submission.zip~: Creates the zip file to upload to the
+  Entelect Challenge servers.
+
+** License
+
+See [[./license.org]]
+
