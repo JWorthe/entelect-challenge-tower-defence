@@ -33,3 +33,6 @@ static-opening = []
 weighted-win-ratio = []
 
 default = ["energy-cutoff", "discard-poor-performers", "static-opening", "weighted-win-ratio"]
+
+[profile.release]
+debug = true
